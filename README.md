@@ -6,7 +6,7 @@ Pokédex and Pokémon trading cards.
 
 Built with **Kotlin**, **Android Views (ViewBinding)**, and **Room Database**.
 
-[![Android CI](https://github.com/Sheketli/OPSC6312-POE-Part-2-Pok-mon-Explorer/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Sheketli/OPSC6312-POE-Part-2-Pok-mon-Explorer/actions/workflows/android-ci.yml)
+[![Android CI](https://github.com/Sheketli/OPSC6312-Final-POE-Pok-mon-Explorer/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Sheketli/OPSC6312-Final-POE-Pok-mon-Explorer/actions/workflows/android-ci.yml)
 
 The full design brief lives in [`design/pokemon-explorer-design.md`](design/pokemon-explorer-design.md).
 
