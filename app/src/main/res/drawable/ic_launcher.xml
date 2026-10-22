@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy launcher icon for API 24–25, which has no adaptive-icon support.
+  API 26+ uses mipmap-anydpi-v26/ic_launcher.xml instead.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#0D1020"
+        android:pathData="M0,0 h108 v108 h-108 z" />
+
+    <!-- Upper shell -->
+    <path
+        android:fillColor="#EE1515"
+        android:pathData="M14,54 A40,40 0 0,1 94,54 Z" />
+    <!-- Lower shell -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M94,54 A40,40 0 0,1 14,54 Z" />
+    <!-- Centre band -->
+    <path
+        android:fillColor="#1A1020"
+        android:pathData="M14,49 h80 v10 h-80 z" />
+    <!-- Shell outline -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1A1020"
+        android:strokeWidth="4"
+        android:pathData="M14,54 A40,40 0 1,1 94,54 A40,40 0 1,1 14,54 Z" />
+    <!-- Release button -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#1A1020"
+        android:strokeWidth="4"
+        android:pathData="M42,54 A12,12 0 1,1 66,54 A12,12 0 1,1 42,54 Z" />
+    <path
+        android:fillColor="#FFCB05"
+        android:pathData="M47,54 A7,7 0 1,1 61,54 A7,7 0 1,1 47,54 Z" />
+</vector>

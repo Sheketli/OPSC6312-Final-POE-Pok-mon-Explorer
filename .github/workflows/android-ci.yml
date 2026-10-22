@@ -1,0 +1,140 @@
+name: Android CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # The Gradle wrapper JAR is not committed in this repo, so CI installs
+      # Gradle directly rather than calling ./gradlew. Keep this version in step
+      # with gradle/wrapper/gradle-wrapper.properties.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+
+      - name: Assemble debug APK
+        id: assemble
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Run unit tests
+        id: test
+        if: steps.assemble.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest --no-daemon 2>&1 | tee -a build.log
+
+      # Compiler diagnostics and test counts normally live in the job log, which is
+      # awkward to read from tooling. Mirror a summary into a commit comment.
+      - name: Publish summary
+        if: always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (p, fallback = '') => { try { return fs.readFileSync(p, 'utf8'); } catch (e) { return fallback; } };
+
+            const log = read('build.log', '(build.log was not produced)');
+            const lines = log.split('\n');
+
+            // ---- compiler diagnostics
+            const compileErrors = lines.filter(l => /^e: /.test(l));
+            const compileWarnings = lines.filter(l => /^w: /.test(l));
+
+            // ---- unit test totals
+            const dir = 'app/build/test-results/testDebugUnitTest';
+            let tests = 0, testFailures = 0, testErrors = 0, testSkipped = 0, suites = 0;
+            try {
+              for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.xml'))) {
+                const xml = read(`${dir}/${f}`);
+                const attr = (name) => {
+                  const m = xml.match(new RegExp(`${name}="(\\d+)"`));
+                  return m ? parseInt(m[1], 10) : 0;
+                };
+                tests += attr('tests'); testFailures += attr('failures');
+                testErrors += attr('errors'); testSkipped += attr('skipped');
+                suites += 1;
+              }
+            } catch (e) { /* no test results */ }
+
+            // ---- APK size
+            let apk = 'not produced';
+            try {
+              const bytes = fs.statSync('app/build/outputs/apk/debug/app-debug.apk').size;
+              apk = `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+            } catch (e) { /* no apk */ }
+
+            const ok = '${{ steps.assemble.outcome }}' === 'success' && '${{ steps.test.outcome }}' === 'success';
+            const icon = ok ? '✅' : '❌';
+            const parts = [];
+            parts.push(`### ${icon} Android CI — ${ok ? 'build and tests passed' : 'failed'}`);
+            parts.push('');
+            parts.push(`| | |`);
+            parts.push(`| --- | --- |`);
+            parts.push(`| Assemble | ${{ steps.assemble.outcome }} |`);
+            parts.push(`| Unit tests | ${{ steps.test.outcome }} |`);
+            parts.push(`| Test suites / cases | ${suites} / ${tests} |`);
+            parts.push(`| Failures / errors / skipped | ${testFailures} / ${testErrors} / ${testSkipped} |`);
+            parts.push(`| Debug APK | ${apk} |`);
+            parts.push(`| Compiler errors / warnings | ${compileErrors.length} / ${compileWarnings.length} |`);
+
+            const clip = (arr, n) => arr.slice(0, n).join('\n').slice(0, 20000);
+
+            if (compileErrors.length) {
+              parts.push('', '<details><summary>Compiler errors</summary>', '', '```', clip(compileErrors, 120), '```', '', '</details>');
+            }
+            if (compileWarnings.length) {
+              parts.push('', '<details><summary>Compiler warnings</summary>', '', '```', clip(compileWarnings, 120), '```', '', '</details>');
+            }
+            if (!ok && !compileErrors.length) {
+              const failLines = lines.filter(l => /FAILURE:|What went wrong|Execution failed|> Could not|Could not resolve|Unresolved reference|Type mismatch/.test(l));
+              parts.push('', '<details><summary>Gradle failure output</summary>', '', '```', clip(failLines.length ? failLines : lines.slice(-120), 120), '```', '', '</details>');
+            }
+
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: parts.join('\n'),
+            });
+
+      - name: Fail if the build or tests did not pass
+        if: steps.assemble.outcome == 'failure' || steps.test.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "Build or tests failed. See the commit comment for diagnostics."
+          exit 1
+
+      - name: Upload debug APK
+        if: steps.assemble.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pokemon-explorer-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn

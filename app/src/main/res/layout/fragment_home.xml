@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/app_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Top Bar -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/btn_settings"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_welcome_user"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.15"
+                    android:text="WELCOME BACK, EXPLORER"
+                    android:textColor="@color/text_low"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Pokémon Explorer"
+                    android:textColor="@color/text_high"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/btn_settings"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_circle_button"
+                android:contentDescription="Settings"
+                android:padding="10dp"
+                android:src="@drawable/ic_settings" />
+        </RelativeLayout>
+
+        <!-- Search Bar Button -->
+        <LinearLayout
+            android:id="@+id/btn_search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_input_field"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:contentDescription="Search"
+                android:src="@drawable/ic_search" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="Search Pokémon by name or #"
+                android:textColor="@color/text_low"
+                android:textSize="14sp" />
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="Pokeball"
+                android:src="@drawable/ic_pokeball" />
+        </LinearLayout>
+
+        <!-- Featured Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_featured"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/surface_07"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_10"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:id="@+id/ll_featured_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="12dp"
+                        android:layout_toStartOf="@id/iv_featured_artwork"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tv_featured_number"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="#025 · Featured"
+                            android:textColor="@color/text_low"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_featured_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Pikachu"
+                            android:textColor="@color/text_high"
+                            android:textSize="22sp"
+                            android:textStyle="bold" />
+
+                        <LinearLayout
+                            android:id="@+id/ll_featured_badges"
+                            android:layout_width="match_parent"
+                            android:layout_height="22dp"
+                            android:layout_marginTop="6dp"
+                            android:orientation="horizontal" />
+
+                        <TextView
+                            android:id="@+id/tv_featured_flavor"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:ellipsize="end"
+                            android:maxLines="4"
+                            android:text="When several of these Pokémon gather, their electricity could build and cause lightning storms."
+                            android:textColor="@color/text_medium"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/iv_featured_artwork"
+                        android:layout_width="80dp"
+                        android:layout_height="80dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:contentDescription="Featured Pokemon" />
+                </RelativeLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_view_details"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="@color/poke_red"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:maxLines="1"
+                        android:paddingHorizontal="8dp"
+                        android:text="View Details"
+                        android:textColor="@color/text_high"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="12dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_random"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="@color/poke_yellow"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:maxLines="1"
+                        android:paddingHorizontal="8dp"
+                        android:text="Random"
+                        android:textColor="#1A1200"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="12dp"
+                        app:icon="@drawable/ic_pokeball"
+                        app:iconGravity="textStart"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp"
+                        app:iconTint="@null" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Filter Chips RecyclerView (Horizontal) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_filter_chips"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal" />
+
+        <!-- Title Section -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/tv_section_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All Pokémon"
+                android:textColor="@color/text_high"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_section_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_toEndOf="@id/tv_section_title"
+                android:text="20"
+                android:textColor="@color/text_low"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/btn_see_all"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="See all →"
+                android:textColor="@color/text_low"
+                android:textSize="12sp" />
+        </RelativeLayout>
+
+        <!-- Loading Indicator -->
+        <ProgressBar
+            android:id="@+id/pb_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_margin="32dp"
+            android:indeterminateTint="@color/poke_red"
+            android:visibility="gone" />
+
+        <!-- Pokémon Grid RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_pokemon_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

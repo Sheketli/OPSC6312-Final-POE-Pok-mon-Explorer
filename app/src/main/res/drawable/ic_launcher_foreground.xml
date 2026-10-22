@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon foreground: a Poké Ball drawn inside the 72dp safe zone of the
+  108dp canvas, so no launcher mask clips it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Upper shell -->
+    <path
+        android:fillColor="#EE1515"
+        android:pathData="M26,54 A28,28 0 0,1 82,54 Z" />
+    <!-- Lower shell -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M82,54 A28,28 0 0,1 26,54 Z" />
+    <!-- Centre band -->
+    <path
+        android:fillColor="#1A1020"
+        android:pathData="M26,50 h56 v8 h-56 z" />
+    <!-- Shell outline -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#1A1020"
+        android:strokeWidth="3"
+        android:pathData="M26,54 A28,28 0 1,1 82,54 A28,28 0 1,1 26,54 Z" />
+    <!-- Release button -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#1A1020"
+        android:strokeWidth="3"
+        android:pathData="M46,54 A8,8 0 1,1 62,54 A8,8 0 1,1 46,54 Z" />
+    <path
+        android:fillColor="#FFCB05"
+        android:pathData="M50,54 A4,4 0 1,1 58,54 A4,4 0 1,1 50,54 Z" />
+</vector>
