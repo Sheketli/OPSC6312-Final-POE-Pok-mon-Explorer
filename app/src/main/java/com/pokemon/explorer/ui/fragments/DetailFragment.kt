@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -76,6 +78,10 @@ class DetailFragment : Fragment() {
             appState.navigate(Screen.COMPARE, idA = pokemonId)
         }
 
+        binding.btnEditNote.setOnClickListener {
+            showEditNoteDialog()
+        }
+
         binding.toggleShiny.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
                 isShiny = checkedId == R.id.btn_shiny
@@ -109,6 +115,12 @@ class DetailFragment : Fragment() {
         val b = _binding ?: return
         b.tvDetailNumber.text = String.format(Locale.US, "#%03d", detail.id)
         b.tvDetailName.text = detail.name.replaceFirstChar { it.uppercase() }
+
+        val summary = com.pokemon.explorer.data.PokemonSummary(detail.id, detail.name, detail.types)
+        val rarity = summary.rarity
+        b.tvPokemonRarityBadge.text = "${rarity.symbol} ${rarity.tierName}"
+        val backgroundShape = b.tvPokemonRarityBadge.background as? android.graphics.drawable.GradientDrawable
+        backgroundShape?.setColor(rarity.getColorInt())
 
         updateArtwork(detail)
 
@@ -201,6 +213,69 @@ class DetailFragment : Fragment() {
 
         val isCaught = appState.caught.value?.contains(pokemonId) == true
         b.btnActionCatch.text = if (isCaught) "Caught!" else "Catch"
+        
+        if (isCaught) {
+            b.llNoteSection.visibility = View.VISIBLE
+            loadNote()
+        } else {
+            b.llNoteSection.visibility = View.GONE
+        }
+    }
+
+    private fun loadNote() {
+        val b = _binding ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val note = appState.getPokemonNote(pokemonId)
+            if (note != null && (note.nickname.isNotBlank() || note.note.isNotBlank())) {
+                if (note.nickname.isNotBlank()) {
+                    b.tvNicknameDisplay.visibility = View.VISIBLE
+                    b.tvNicknameDisplay.text = "\"${note.nickname}\""
+                } else {
+                    b.tvNicknameDisplay.visibility = View.GONE
+                }
+                
+                if (note.note.isNotBlank()) {
+                    b.tvNoteDisplay.visibility = View.VISIBLE
+                    b.tvNoteDisplay.text = note.note
+                } else {
+                    b.tvNoteDisplay.visibility = View.GONE
+                }
+            } else {
+                b.tvNicknameDisplay.visibility = View.GONE
+                b.tvNoteDisplay.visibility = View.VISIBLE
+                b.tvNoteDisplay.text = "Tap the edit icon to add a nickname or note."
+            }
+        }
+    }
+
+    private fun showEditNoteDialog() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val currentNote = appState.getPokemonNote(pokemonId)
+            
+            val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_note, null)
+            val etNickname = dialogView.findViewById<EditText>(R.id.et_dialog_nickname)
+            val etNote = dialogView.findViewById<EditText>(R.id.et_dialog_note)
+            
+            if (currentNote != null) {
+                etNickname.setText(currentNote.nickname)
+                etNote.setText(currentNote.note)
+            }
+            
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Edit Details")
+                .setView(dialogView)
+                .setPositiveButton("Save") { dialog, _ ->
+                    val newNickname = etNickname.text.toString().trim()
+                    val newNote = etNote.text.toString().trim()
+                    appState.savePokemonNote(pokemonId, newNickname, newNote)
+                    loadNote()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        }
     }
 
     override fun onDestroyView() {

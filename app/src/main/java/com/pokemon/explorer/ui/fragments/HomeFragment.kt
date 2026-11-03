@@ -16,6 +16,7 @@ import com.pokemon.explorer.data.PokeApi
 import com.pokemon.explorer.data.PokemonSummary
 import com.pokemon.explorer.data.typeColor
 import com.pokemon.explorer.databinding.FragmentHomeBinding
+import com.pokemon.explorer.model.PokemonRarity
 import com.pokemon.explorer.state.AppState
 import com.pokemon.explorer.state.Screen
 import com.pokemon.explorer.ui.adapters.PokemonAdapter
@@ -32,6 +33,10 @@ class HomeFragment : Fragment() {
 
     private val typeFilters = listOf("All", "fire", "water", "grass", "electric", "psychic", "dragon", "ghost", "fairy")
     private var activeFilter = "All"
+    
+    private val rarityFilters = listOf("All") + PokemonRarity.values().map { it.tierName }
+    private var activeRarityFilter = "All"
+    
     private var allItems = listOf<PokemonSummary>()
 
     private lateinit var pokemonAdapter: PokemonAdapter
@@ -61,6 +66,12 @@ class HomeFragment : Fragment() {
         binding.rvFilterChips.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         binding.rvFilterChips.adapter = TypeFilterAdapter(typeFilters, activeFilter) { filter ->
             activeFilter = filter
+            applyFilter()
+        }
+
+        binding.rvRarityFilterChips.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        binding.rvRarityFilterChips.adapter = TypeFilterAdapter(rarityFilters, activeRarityFilter) { filter ->
+            activeRarityFilter = filter
             applyFilter()
         }
 
@@ -123,12 +134,20 @@ class HomeFragment : Fragment() {
 
     private fun applyFilter() {
         val b = _binding ?: return
-        val filtered = if (activeFilter == "All") {
-            allItems
-        } else {
-            allItems.filter { it.types.contains(activeFilter) }
+        var filtered = allItems
+        if (activeFilter != "All") {
+            filtered = filtered.filter { it.types.contains(activeFilter) }
         }
-        b.tvSectionTitle.text = if (activeFilter == "All") "All Pokémon" else activeFilter.replaceFirstChar { it.uppercase() } + " Type"
+        if (activeRarityFilter != "All") {
+            filtered = filtered.filter { it.rarity.tierName == activeRarityFilter }
+        }
+        b.tvSectionTitle.text = if (activeFilter == "All" && activeRarityFilter == "All") {
+            "All Pokémon"
+        } else if (activeFilter != "All") {
+            activeFilter.replaceFirstChar { it.uppercase() } + " Type"
+        } else {
+            "$activeRarityFilter Rarity"
+        }
         b.tvSectionCount.text = filtered.size.toString()
         pokemonAdapter.submitList(filtered)
     }
