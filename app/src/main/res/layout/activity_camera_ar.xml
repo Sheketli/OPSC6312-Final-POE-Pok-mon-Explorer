@@ -1,0 +1,133 @@
+<!-- res/layout/activity_camera_ar.xml -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:transitionName="transition_pokeball_to_camera">
+
+    <!-- Camera Viewfinder Surface Canvas Layer -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/viewFinder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:scaleType="fillCenter" />
+
+    <!-- AR Overlay Container for dynamic Pokemon sprites -->
+    <FrameLayout
+        android:id="@+id/arOverlayContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Targeting Crosshairs Reticle HUD Element -->
+    <ImageView
+        android:id="@+id/ivTargetReticle"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/ic_ar_reticle"
+        app:layout_constraintBottom_toTopOf="@id/cardPokemonMetrics"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <!-- Sliding AR HUD Encounter Info Card Overlay -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardPokemonMetrics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="20dp"
+        android:visibility="gone"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:strokeWidth="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/tvArPokemonId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="#000"
+                android:textColor="#666666"
+                android:textSize="14sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tvArPokemonName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Scanning Area..."
+                android:textColor="#000000"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvArPokemonId" />
+
+            <!-- Elemental Attribute Tags Container Layout -->
+            <LinearLayout
+                android:id="@+id/llArAttributeLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvArPokemonName">
+
+                <TextView
+                    android:id="@+id/tvTypePrimary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_type_pill"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:text="TYPE"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <!-- Rarity Badge -->
+                <TextView
+                    android:id="@+id/tvPokemonRarityBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_rarity_pill"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="● Common"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvArPokemonDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Locking signatures..."
+                android:textColor="#444444"
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@id/llArAttributeLayout" />
+
+            <Button
+                android:id="@+id/btnCatchAction"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="@color/poke_red"
+                android:text="CATCH POKÉMON"
+                android:textColor="#FFFFFF"
+                app:cornerRadius="8dp"
+                app:layout_constraintTop_toBottomOf="@id/tvArPokemonDescription" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
