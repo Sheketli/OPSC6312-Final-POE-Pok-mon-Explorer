@@ -10,6 +10,15 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE username = :username")
     suspend fun getUserByUsername(username: String): User?
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Query("SELECT * FROM users WHERE email = :email")
+    suspend fun getUserByEmail(email: String): User?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
+
+    @Query("UPDATE users SET passwordHash = :newHash WHERE username = :username")
+    suspend fun updatePassword(username: String, newHash: String)
+
+    @Query("UPDATE users SET username = :newUsername WHERE username = :oldUsername")
+    suspend fun updateUsername(oldUsername: String, newUsername: String)
 }
