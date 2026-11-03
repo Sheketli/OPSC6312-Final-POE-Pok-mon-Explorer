@@ -46,18 +46,18 @@
             android:text="Login to continue your journey"
             android:textColor="@color/text_low"
             android:textSize="14sp"
-            app:layout_constraintBottom_toTopOf="@id/til_username"
+            app:layout_constraintBottom_toTopOf="@id/til_email"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_title" />
 
         <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/til_username"
+            android:id="@+id/til_email"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="36dp"
-            android:hint="Username"
+            android:hint="Email Address"
             android:textColorHint="@color/text_low"
             app:boxBackgroundColor="@color/surface_07"
             app:boxCornerRadiusBottomEnd="12dp"
@@ -70,14 +70,16 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_subtitle"
-            app:startIconDrawable="@drawable/ic_user"
+            app:startIconDrawable="@drawable/ic_email"
             app:startIconTint="@color/text_low">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_username"
+                android:id="@+id/et_email"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="text"
+                android:minHeight="48dp"
+                android:autofillHints="emailAddress"
+                android:inputType="textEmailAddress"
                 android:textColor="@color/text_high" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -101,7 +103,7 @@
             app:layout_constraintBottom_toTopOf="@id/tv_error"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/til_username"
+            app:layout_constraintTop_toBottomOf="@id/til_email"
             app:startIconDrawable="@drawable/ic_lock"
             app:startIconTint="@color/text_low">
 
@@ -109,6 +111,8 @@
                 android:id="@+id/et_password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:autofillHints="password"
                 android:inputType="textPassword"
                 android:textColor="@color/text_high" />
         </com.google.android.material.textfield.TextInputLayout>
@@ -142,6 +146,39 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tv_error" />
 
+        <TextView
+            android:id="@+id/tv_or"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="OR"
+            android:textColor="@color/text_low"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btn_login" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_google_sign_in"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/surface_07"
+            android:text="Continue with Google"
+            android:textColor="@color/text_high"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:cornerRadius="14dp"
+            app:icon="@drawable/ic_google"
+            app:iconTint="@null"
+            app:iconGravity="textStart"
+            app:strokeColor="@color/border_10"
+            app:strokeWidth="1dp"
+            app:layout_constraintBottom_toTopOf="@id/ll_register_link"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_or" />
+
         <LinearLayout
             android:id="@+id/ll_register_link"
             android:layout_width="wrap_content"
@@ -151,7 +188,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btn_login">
+            app:layout_constraintTop_toBottomOf="@id/btn_google_sign_in">
 
             <TextView
                 android:layout_width="wrap_content"

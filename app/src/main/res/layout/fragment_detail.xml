@@ -117,12 +117,76 @@
                         android:textSize="26sp"
                         android:textStyle="bold" />
 
+                    <!-- Statically Layered Rarity Pill Badge -->
+                    <TextView
+                        android:id="@+id/tvPokemonRarityBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_rarity_pill"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="● Common"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
                     <LinearLayout
                         android:id="@+id/ll_detail_badges"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:orientation="horizontal" />
+
+                    <LinearLayout
+                        android:id="@+id/ll_note_section"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="My Notes"
+                                android:textColor="@color/text_high"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+                            <ImageView
+                                android:id="@+id/btn_edit_note"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_edit"
+                                android:contentDescription="Edit Note"
+                                app:tint="@color/text_low" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_nickname_display"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/text_high"
+                            android:textSize="14sp"
+                            android:textStyle="italic"
+                            android:visibility="gone"/>
+
+                        <TextView
+                            android:id="@+id/tv_note_display"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/text_low"
+                            android:textSize="12sp"
+                            android:visibility="gone"/>
+                    </LinearLayout>
 
                     <!-- Normal / Shiny Toggle -->
                     <com.google.android.material.button.MaterialButtonToggleGroup

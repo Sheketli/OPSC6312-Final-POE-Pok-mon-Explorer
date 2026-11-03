@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
@@ -101,7 +102,7 @@
                             android:id="@+id/btn_theme_light"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="40dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
@@ -114,7 +115,7 @@
                             android:id="@+id/btn_theme_dark"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="40dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
@@ -127,7 +128,7 @@
                             android:id="@+id/btn_theme_system"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="40dp"
+                            android:layout_height="48dp"
                             android:layout_weight="1"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
@@ -204,7 +205,7 @@
                             android:id="@+id/btn_clear_cache"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="38dp"
+                            android:layout_height="48dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
                             android:insetTop="0dp"
@@ -252,7 +253,7 @@
                             android:id="@+id/btn_clear_history"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="38dp"
+                            android:layout_height="48dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
                             android:insetTop="0dp"
@@ -299,7 +300,7 @@
                             android:id="@+id/btn_reset_collection"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="38dp"
+                            android:layout_height="48dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
                             android:insetTop="0dp"
@@ -311,6 +312,198 @@
                             app:strokeColor="@color/poke_red" />
                     </RelativeLayout>
 
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentStart="true"
+                            android:layout_centerVertical="true"
+                            android:layout_marginEnd="12dp"
+                            android:layout_toStartOf="@id/btn_download_all"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Download Full Database"
+                                android:textColor="@color/text_high"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Cache Pokémons for offline mode"
+                                android:textColor="@color/text_low"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_download_all"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="48dp"
+                            android:layout_alignParentEnd="true"
+                            android:layout_centerVertical="true"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:paddingHorizontal="12dp"
+                            android:text="Download"
+                            android:textColor="@color/type_water"
+                            android:textSize="12sp"
+                            app:strokeColor="@color/type_water" />
+                    </RelativeLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- AR Tracking Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:letterSpacing="0.1"
+                android:text="AR TRACKING"
+                android:textColor="@color/text_faint"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="@color/surface_05"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border_08"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hardware Gyroscope"
+                            android:textColor="@color/text_high"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Use device rotation sensors for AR"
+                            android:textColor="@color/text_low"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.button.MaterialButtonToggleGroup
+                            android:id="@+id/toggle_gyroscope"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            app:checkedButton="@id/btn_gyro_on"
+                            app:singleSelection="true">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_gyro_on"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:paddingHorizontal="4dp"
+                                android:text="On"
+                                android:textColor="@color/text_high"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_gyro_off"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:paddingHorizontal="4dp"
+                                android:text="Off"
+                                android:textColor="@color/text_high"
+                                android:textSize="12sp" />
+                        </com.google.android.material.button.MaterialButtonToggleGroup>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Screen Dragging"
+                            android:textColor="@color/text_high"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Drag to look around (Fallback)"
+                            android:textColor="@color/text_low"
+                            android:textSize="12sp" />
+
+                        <com.google.android.material.button.MaterialButtonToggleGroup
+                            android:id="@+id/toggle_screen_dragging"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            app:checkedButton="@id/btn_drag_on"
+                            app:singleSelection="true">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_drag_on"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:paddingHorizontal="4dp"
+                                android:text="On"
+                                android:textColor="@color/text_high"
+                                android:textSize="12sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_drag_off"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="48dp"
+                                android:layout_weight="1"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:paddingHorizontal="4dp"
+                                android:text="Off"
+                                android:textColor="@color/text_high"
+                                android:textSize="12sp" />
+                        </com.google.android.material.button.MaterialButtonToggleGroup>
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -374,6 +567,16 @@
                             android:textSize="12sp"
                             android:textStyle="bold" />
                     </RelativeLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_manage_account"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="Manage Account"
+                        android:textColor="@color/text_high"
+                        app:strokeColor="@color/border_10" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_logout"

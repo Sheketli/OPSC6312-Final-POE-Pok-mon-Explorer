@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Pokémon Explorer</string>
     <string name="app_tagline">Discover · Compare · Explore</string>
+    <string name="default_web_client_id">113931962319-irb7nb433kmcsrsgehv3lmm30q5gdfmm.apps.googleusercontent.com</string>
 </resources>
