@@ -1,5 +1,9 @@
 package com.pokemon.explorer.data
 
+import android.content.Context
+import com.pokemon.explorer.data.db.AppDatabase
+import com.pokemon.explorer.data.db.CachedPokemon
+import com.pokemon.explorer.data.db.CachedPokemonDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -31,6 +35,11 @@ object PokeApi {
     private const val MOVE_LIMIT = 10
 
     private val cache = ConcurrentHashMap<String, JSONObject>()
+    private var cachedPokemonDao: CachedPokemonDao? = null
+
+    fun init(context: Context) {
+        cachedPokemonDao = AppDatabase.getDatabase(context).cachedPokemonDao()
+    }
 
     /**
      * Official artwork URL for a Pokémon. [shiny] switches to the shiny artwork.
@@ -43,6 +52,9 @@ object PokeApi {
     /** Drops every memoised response. Wired to "Clear Cache" in Settings. */
     fun clearCache() {
         cache.clear()
+        Thread {
+            cachedPokemonDao?.clearAll()
+        }.start()
     }
 
     /**
@@ -73,6 +85,45 @@ object PokeApi {
         // Flavour text is a nice-to-have: a missing species record must not fail the screen.
         val species = runCatching { get("$BASE/pokemon-species/$id") }.getOrNull()
         return buildDetail(pokemon, species)
+    }
+
+    suspend fun downloadPokedexIndex(): List<PokemonSummary> = withContext(Dispatchers.IO) {
+        val url = "https://beta.pokeapi.co/graphql/v1beta"
+        val query = """{"query":"query { pokemon_v2_pokemon(where: {id: {_lte: 1025}}) { id name pokemon_v2_pokemontypes { pokemon_v2_type { name } } } }"}"""
+        
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Accept", "application/json")
+            doOutput = true
+            outputStream.write(query.toByteArray())
+        }
+
+        try {
+            val status = connection.responseCode
+            if (status !in 200..299) throw IOException("HTTP $status")
+
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            val json = JSONObject(body)
+            val data = json.getJSONObject("data").getJSONArray("pokemon_v2_pokemon")
+            
+            (0 until data.length()).map { i ->
+                val pkmn = data.getJSONObject(i)
+                val typesArr = pkmn.getJSONArray("pokemon_v2_pokemontypes")
+                val typesList = (0 until typesArr.length()).map { j ->
+                    typesArr.getJSONObject(j).getJSONObject("pokemon_v2_type").getString("name")
+                }
+                PokemonSummary(
+                    id = pkmn.getInt("id"),
+                    name = pkmn.getString("name"),
+                    types = typesList
+                )
+            }
+        } finally {
+            connection.disconnect()
+        }
     }
 
     /**
@@ -170,6 +221,13 @@ object PokeApi {
     private suspend fun get(url: String): JSONObject = withContext(Dispatchers.IO) {
         cache[url]?.let { return@withContext it }
 
+        val dbCache = cachedPokemonDao?.get(url)
+        if (dbCache != null) {
+            val json = JSONObject(dbCache.jsonPayload)
+            cache[url] = json
+            return@withContext json
+        }
+
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
@@ -182,7 +240,12 @@ object PokeApi {
             if (status !in 200..299) throw IOException("HTTP $status")
 
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            JSONObject(body).also { cache[url] = it }
+            JSONObject(body).also { 
+                cache[url] = it 
+                cachedPokemonDao?.insert(CachedPokemon(url, body))
+            }
+        } catch (e: Exception) {
+            throw IOException("Network error: ${e.message}")
         } finally {
             connection.disconnect()
         }

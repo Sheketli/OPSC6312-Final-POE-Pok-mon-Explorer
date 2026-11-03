@@ -30,7 +30,14 @@ class TypeFilterAdapter(
         binding.tvChipLabel.text = if (filter == "All") "✦ All" else filter
 
         if (isSelected) {
-            val bg = if (filter == "All") Color.parseColor("#FFCB05") else typeColor(filter)
+            val rarityColor = com.pokemon.explorer.model.PokemonRarity.values().find { it.tierName == filter }?.getColorInt()
+            val bg = if (filter == "All") {
+                Color.parseColor("#FFCB05")
+            } else if (rarityColor != null) {
+                rarityColor
+            } else {
+                typeColor(filter)
+            }
             binding.tvChipLabel.setBackgroundColor(bg)
             val textColor = if (filter == "All") Color.parseColor("#1A1200") else contrastOn(bg)
             binding.tvChipLabel.setTextColor(textColor)

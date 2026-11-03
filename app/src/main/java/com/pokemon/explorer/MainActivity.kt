@@ -6,6 +6,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.core.app.ActivityOptionsCompat
 import com.pokemon.explorer.databinding.ActivityMainBinding
 import com.pokemon.explorer.state.AppState
 import com.pokemon.explorer.state.NavFrame
@@ -19,6 +20,7 @@ import com.pokemon.explorer.ui.fragments.LoginFragment
 import com.pokemon.explorer.ui.fragments.RegisterFragment
 import com.pokemon.explorer.ui.fragments.SearchFragment
 import com.pokemon.explorer.ui.fragments.SettingsFragment
+import com.pokemon.explorer.ui.fragments.AccountManagementFragment
 import com.pokemon.explorer.ui.fragments.SplashFragment
 import com.pokemon.explorer.ui.fragments.TypeGuideFragment
 
@@ -34,10 +36,21 @@ class MainActivity : AppCompatActivity() {
 
         setupBottomNavigation()
         setupBackHandler()
+        
+        binding.fabCameraLauncher.setOnClickListener {
+            val intent = android.content.Intent(this, CameraArActivity::class.java)
+            val sharedElementOptions = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this,
+                binding.fabCameraLauncher,
+                "transition_pokeball_to_camera"
+            )
+            startActivity(intent, sharedElementOptions.toBundle())
+        }
 
         appState.currentFrame.observe(this) { frame ->
             if (!appState.isSplashFinished) {
                 binding.bottomNavigation.visibility = View.GONE
+                binding.fabCameraLauncher.visibility = View.GONE
                 showFragment(SplashFragment(), addToBackStack = false)
                 appState.isSplashFinished = true
             } else {
@@ -84,7 +97,14 @@ class MainActivity : AppCompatActivity() {
     private fun updateScreen(frame: NavFrame) {
         val user = appState.currentUser.value
         val showNav = user != null && !Screen.HIDDEN_NAV.contains(frame.screen)
-        binding.bottomNavigation.visibility = if (showNav) View.VISIBLE else View.GONE
+        
+        if (showNav) {
+            binding.bottomNavigation.visibility = View.VISIBLE
+            binding.fabCameraLauncher.visibility = View.VISIBLE
+        } else {
+            binding.bottomNavigation.visibility = View.GONE
+            binding.fabCameraLauncher.visibility = View.GONE
+        }
 
         val fragment: Fragment = if (user == null) {
             when (frame.screen) {
@@ -100,6 +120,7 @@ class MainActivity : AppCompatActivity() {
                 Screen.COLLECTION -> CollectionFragment()
                 Screen.TYPE_GUIDE -> TypeGuideFragment()
                 Screen.SETTINGS -> SettingsFragment()
+                Screen.ACCOUNT -> AccountManagementFragment()
                 else -> HomeFragment()
             }
         }

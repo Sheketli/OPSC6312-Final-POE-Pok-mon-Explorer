@@ -9,10 +9,14 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import android.os.Build
+import androidx.core.content.ContextCompat
 import com.pokemon.explorer.R
 import com.pokemon.explorer.data.PokeApi
+import com.pokemon.explorer.data.sync.BulkDownloadService
 import com.pokemon.explorer.databinding.FragmentSettingsBinding
 import com.pokemon.explorer.state.AppState
+import com.pokemon.explorer.state.Screen
 import com.pokemon.explorer.state.ThemeSetting
 
 class SettingsFragment : Fragment() {
@@ -50,6 +54,20 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        appState.gyroscopeEnabled.observe(viewLifecycleOwner) { enabled ->
+            val checkedId = if (enabled) R.id.btn_gyro_on else R.id.btn_gyro_off
+            if (_binding?.toggleGyroscope?.checkedButtonId != checkedId) {
+                _binding?.toggleGyroscope?.check(checkedId)
+            }
+        }
+
+        appState.screenDraggingEnabled.observe(viewLifecycleOwner) { enabled ->
+            val checkedId = if (enabled) R.id.btn_drag_on else R.id.btn_drag_off
+            if (_binding?.toggleScreenDragging?.checkedButtonId != checkedId) {
+                _binding?.toggleScreenDragging?.check(checkedId)
+            }
+        }
+
         binding.toggleTheme.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
                 val theme = when (checkedId) {
@@ -61,6 +79,24 @@ class SettingsFragment : Fragment() {
                 if (appState.theme.value != theme) {
                     appState.selectTheme(theme)
                     requireActivity().recreate()
+                }
+            }
+        }
+
+        binding.toggleGyroscope.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                val enabled = checkedId == R.id.btn_gyro_on
+                if (appState.gyroscopeEnabled.value != enabled) {
+                    appState.updateGyroscopeEnabled(enabled)
+                }
+            }
+        }
+
+        binding.toggleScreenDragging.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                val enabled = checkedId == R.id.btn_drag_on
+                if (appState.screenDraggingEnabled.value != enabled) {
+                    appState.updateScreenDraggingEnabled(enabled)
                 }
             }
         }
@@ -78,6 +114,20 @@ class SettingsFragment : Fragment() {
         binding.btnResetCollection.setOnClickListener {
             appState.resetCollection()
             Toast.makeText(requireContext(), "Collection reset", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnManageAccount.setOnClickListener {
+            appState.navigate(Screen.ACCOUNT)
+        }
+
+        binding.btnDownloadAll.setOnClickListener {
+            Toast.makeText(requireContext(), "Starting full database download in background...", Toast.LENGTH_SHORT).show()
+            val serviceIntent = Intent(requireContext(), BulkDownloadService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(requireContext(), serviceIntent)
+            } else {
+                requireContext().startService(serviceIntent)
+            }
         }
 
         binding.btnLogout.setOnClickListener {

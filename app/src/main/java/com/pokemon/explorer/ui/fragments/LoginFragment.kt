@@ -9,6 +9,14 @@ import androidx.fragment.app.activityViewModels
 import com.pokemon.explorer.databinding.FragmentLoginBinding
 import com.pokemon.explorer.state.AppState
 import com.pokemon.explorer.state.Screen
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.lifecycle.lifecycleScope
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.launch
 
 class LoginFragment : Fragment() {
 
@@ -29,13 +37,17 @@ class LoginFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.btnLogin.setOnClickListener {
-            val username = binding.etUsername.text?.toString().orEmpty()
+            val email = binding.etEmail.text?.toString().orEmpty()
             val password = binding.etPassword.text?.toString().orEmpty()
-            appState.login(username, password)
+            appState.login(email, password)
         }
 
         binding.tvRegisterLink.setOnClickListener {
             appState.navigate(Screen.REGISTER)
+        }
+
+        binding.btnGoogleSignIn.setOnClickListener {
+            doGoogleSignIn()
         }
 
         appState.authError.observe(viewLifecycleOwner) { error ->
@@ -57,5 +69,40 @@ class LoginFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun doGoogleSignIn() {
+        val webClientId = resources.getIdentifier("default_web_client_id", "string", requireContext().packageName).let {
+            if (it != 0) getString(it) else "YOUR_WEB_CLIENT_ID"
+        }
+
+        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(webClientId)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(signInWithGoogleOption)
+            .build()
+
+        lifecycleScope.launch {
+            try {
+                val credentialManager = CredentialManager.create(requireContext())
+                val result = credentialManager.getCredential(
+                    request = request,
+                    context = requireContext()
+                )
+                val credential = result.credential
+                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    appState.googleSignIn(googleIdTokenCredential.idToken)
+                }
+            } catch (e: androidx.credentials.exceptions.GetCredentialException) {
+                // Ignore cancellations, but log other exceptions
+                if (e !is androidx.credentials.exceptions.GetCredentialCancellationException) {
+                   appState.setAuthError("Google Sign-In failed or was cancelled")
+                }
+            } catch (e: Exception) {
+                appState.setAuthError("Configuration Error: Make sure your SHA-1 is added to Firebase and the Web Client ID is correct.")
+            }
+        }
     }
 }

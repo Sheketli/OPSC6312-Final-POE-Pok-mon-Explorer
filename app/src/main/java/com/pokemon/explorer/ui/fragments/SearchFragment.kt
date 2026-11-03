@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.Chip
 import com.pokemon.explorer.data.PokeApi
+import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.databinding.FragmentSearchBinding
 import com.pokemon.explorer.state.AppState
 import com.pokemon.explorer.state.Screen
@@ -122,19 +123,46 @@ class SearchFragment : Fragment() {
         b.svSuggestions.visibility = View.GONE
 
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(400)
-            val result = PokeApi.find(trimmed)
+            delay(300)
+            
+            val db = AppDatabase.getDatabase(requireContext())
+            val dao = db.pokemonIndexDao()
+            
+            // Try to parse the query as an ID to search by number, or just by name
+            val searchId = trimmed.toIntOrNull()
+            val offlineResults = dao.search(trimmed, searchId ?: -1)
+            
             val b1 = _binding ?: return@launch
             b1.pbSearching.visibility = View.GONE
 
-            if (result != null) {
+            if (offlineResults.isNotEmpty()) {
                 appState.addSearchToHistory(trimmed)
                 b1.rvSearchResults.visibility = View.VISIBLE
                 b1.tvResultCount.visibility = View.VISIBLE
-                b1.tvResultCount.text = "1 Pokémon found"
+                b1.tvResultCount.text = "${offlineResults.size} Pokémon found"
                 b1.tvEmptyState.visibility = View.GONE
-                pokemonAdapter.submitList(listOf(result))
+                
+                val summaries = offlineResults.map {
+                    com.pokemon.explorer.data.PokemonSummary(it.id, it.name, it.typesCsv.split(","))
+                }
+                pokemonAdapter.submitList(summaries)
             } else {
+                // Fallback to API if we don't have it offline
+                try {
+                    val result = PokeApi.find(trimmed)
+                    if (result != null) {
+                        appState.addSearchToHistory(trimmed)
+                        b1.rvSearchResults.visibility = View.VISIBLE
+                        b1.tvResultCount.visibility = View.VISIBLE
+                        b1.tvResultCount.text = "1 Pokémon found"
+                        b1.tvEmptyState.visibility = View.GONE
+                        pokemonAdapter.submitList(listOf(result))
+                        return@launch
+                    }
+                } catch (e: Exception) {
+                    // Ignore offline
+                }
+
                 b1.rvSearchResults.visibility = View.GONE
                 b1.tvResultCount.visibility = View.GONE
                 b1.svSuggestions.visibility = View.VISIBLE

@@ -1,11 +1,26 @@
 package com.pokemon.explorer.data
 
+import com.pokemon.explorer.model.PokemonRarity
+import kotlin.random.Random
+
 /** A Pokémon as shown on a grid card: enough data to render name, number and types. */
 data class PokemonSummary(
     val id: Int,
     val name: String,
     val types: List<String> = emptyList(),
-)
+) {
+    val rarity: PokemonRarity
+        get() {
+            val randomVal = Random(id).nextDouble()
+            var cumulative = 0.0
+            for (r in PokemonRarity.values()) {
+                cumulative += r.spawnChance
+                if (randomVal <= cumulative) return r
+            }
+            return PokemonRarity.COMMON
+        }
+}
+
 
 data class Ability(
     val name: String,

@@ -62,6 +62,11 @@ class PokemonAdapter(
             binding.llTypes.addView(badgeView)
         }
 
+        val rarity = item.rarity
+        binding.tvPokemonRarityBadge.text = "${rarity.symbol} ${rarity.tierName}"
+        val backgroundShape = binding.tvPokemonRarityBadge.background as? android.graphics.drawable.GradientDrawable
+        backgroundShape?.setColor(rarity.getColorInt())
+
         binding.cardRoot.setOnClickListener {
             onItemClick(item.id)
         }
