@@ -55,8 +55,8 @@ class HomeFragment : Fragment() {
 
         appState.currentUser.observe(viewLifecycleOwner) { user ->
             val b = _binding ?: return@observe
-            val name = user?.username?.uppercase() ?: "EXPLORER"
-            b.tvWelcomeUser.text = "WELCOME BACK, $name"
+            val name = user?.username ?: getString(R.string.ui_explorer)
+            b.tvWelcomeUser.text = getString(R.string.welcome_user, name)
         }
 
         binding.btnSettings.setOnClickListener { appState.navigate(Screen.SETTINGS) }
@@ -95,7 +95,7 @@ class HomeFragment : Fragment() {
             try {
                 val featured = PokeApi.detail(25)
                 val b1 = _binding ?: return@launch
-                b1.tvFeaturedNumber.text = String.format(Locale.US, "#%03d · Featured", featured.id)
+                b1.tvFeaturedNumber.text = getString(R.string.featured_number, featured.id)
                 b1.tvFeaturedName.text = featured.name.replaceFirstChar { it.uppercase() }
                 b1.tvFeaturedFlavor.text = featured.flavorText ?: ""
                 b1.ivFeaturedArtwork.load(PokeApi.artworkUrl(featured.id))
@@ -142,7 +142,7 @@ class HomeFragment : Fragment() {
             filtered = filtered.filter { it.rarity.tierName == activeRarityFilter }
         }
         b.tvSectionTitle.text = if (activeFilter == "All" && activeRarityFilter == "All") {
-            "All Pokémon"
+            getString(R.string.ui_all_pok_mon)
         } else if (activeFilter != "All") {
             activeFilter.replaceFirstChar { it.uppercase() } + " Type"
         } else {

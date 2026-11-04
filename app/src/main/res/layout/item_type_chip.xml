@@ -9,7 +9,7 @@
     android:focusable="true"
     android:paddingHorizontal="14dp"
     android:paddingVertical="8dp"
-    android:text="✦ All"
+    android:text="@string/ui_all"
     android:textColor="@color/text_low"
     android:textSize="12sp"
     android:textStyle="bold" />

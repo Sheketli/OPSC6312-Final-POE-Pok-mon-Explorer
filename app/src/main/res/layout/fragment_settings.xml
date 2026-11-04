@@ -26,7 +26,7 @@
                 android:layout_width="38dp"
                 android:layout_height="38dp"
                 android:background="@drawable/bg_circle_button"
-                android:contentDescription="Back"
+                android:contentDescription="@string/ui_back"
                 android:padding="10dp"
                 android:src="@drawable/ic_back" />
 
@@ -34,7 +34,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                android:text="Settings"
+                android:text="@string/ui_settings"
                 android:textColor="@color/text_high"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -50,10 +50,35 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="@string/ui_language"
+                android:textColor="@color/text_high"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ui_choose_your_app_language"
+                android:textColor="@color/text_low"
+                android:textSize="12sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_language"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:layout_marginBottom="16dp"
+                android:textAllCaps="false"
+                android:textColor="@color/text_high" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="APPEARANCE"
+                android:text="@string/ui_appearance"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -77,7 +102,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Theme"
+                        android:text="@string/ui_theme"
                         android:textColor="@color/text_high"
                         android:textSize="15sp"
                         android:textStyle="bold" />
@@ -86,7 +111,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Choose your display preference"
+                        android:text="@string/ui_choose_your_display_preference"
                         android:textColor="@color/text_low"
                         android:textSize="12sp" />
 
@@ -107,7 +132,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="4dp"
-                            android:text="Light"
+                            android:text="@string/ui_light"
                             android:textColor="@color/text_high"
                             android:textSize="12sp" />
 
@@ -120,7 +145,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="4dp"
-                            android:text="Dark"
+                            android:text="@string/ui_dark"
                             android:textColor="@color/text_high"
                             android:textSize="12sp" />
 
@@ -133,7 +158,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="4dp"
-                            android:text="System"
+                            android:text="@string/ui_system"
                             android:textColor="@color/text_high"
                             android:textSize="12sp" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -148,7 +173,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="DATA"
+                android:text="@string/ui_data"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -187,7 +212,7 @@
                                 android:id="@+id/tv_clear_cache_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Clear Cache"
+                                android:text="@string/ui_clear_cache"
                                 android:textColor="@color/text_high"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -196,7 +221,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Free up local storage"
+                                android:text="@string/ui_free_up_local_storage"
                                 android:textColor="@color/text_low"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -211,7 +236,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="12dp"
-                            android:text="Clear"
+                            android:text="@string/ui_clear"
                             android:textColor="@color/poke_red"
                             android:textSize="12sp"
                             app:strokeColor="@color/poke_red" />
@@ -235,7 +260,7 @@
                                 android:id="@+id/tv_clear_history_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Clear Search History"
+                                android:text="@string/ui_clear_search_history"
                                 android:textColor="@color/text_high"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -244,7 +269,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Remove past searches"
+                                android:text="@string/ui_remove_past_searches"
                                 android:textColor="@color/text_low"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -259,7 +284,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="12dp"
-                            android:text="Clear"
+                            android:text="@string/ui_clear"
                             android:textColor="@color/poke_red"
                             android:textSize="12sp"
                             app:strokeColor="@color/poke_red" />
@@ -282,7 +307,7 @@
                                 android:id="@+id/tv_reset_collection_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Reset Collection"
+                                android:text="@string/ui_reset_collection"
                                 android:textColor="@color/text_high"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -291,7 +316,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Clear favourites &amp; caught"
+                                android:text="@string/ui_clear_favourites_and_caught"
                                 android:textColor="@color/text_low"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -306,7 +331,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="12dp"
-                            android:text="Reset"
+                            android:text="@string/ui_reset"
                             android:textColor="@color/poke_red"
                             android:textSize="12sp"
                             app:strokeColor="@color/poke_red" />
@@ -329,7 +354,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Download Full Database"
+                                android:text="@string/ui_download_full_database"
                                 android:textColor="@color/text_high"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -338,7 +363,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Cache Pokémons for offline mode"
+                                android:text="@string/ui_cache_pok_mons_for_offline_mode"
                                 android:textColor="@color/text_low"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -353,7 +378,7 @@
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:paddingHorizontal="12dp"
-                            android:text="Download"
+                            android:text="@string/ui_download"
                             android:textColor="@color/type_water"
                             android:textSize="12sp"
                             app:strokeColor="@color/type_water" />
@@ -369,7 +394,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="NOTIFICATIONS"
+                android:text="@string/ui_notifications"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -398,7 +423,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Push Notifications"
+                            android:text="@string/ui_push_notifications"
                             android:textColor="@color/text_high"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -407,7 +432,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Receive alerts and updates"
+                            android:text="@string/ui_receive_alerts_and_updates"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
 
@@ -428,7 +453,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="On"
+                                android:text="@string/ui_on"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
 
@@ -441,7 +466,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="Off"
+                                android:text="@string/ui_off"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
                         </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -454,7 +479,7 @@
                             android:layout_marginTop="16dp"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
-                            android:text="Test Rare Spawn Notification"
+                            android:text="@string/ui_test_rare_spawn_notification"
                             android:textColor="@color/poke_red"
                             android:textSize="12sp"
                             app:strokeColor="@color/poke_red" />
@@ -470,7 +495,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="AR TRACKING"
+                android:text="@string/ui_ar_tracking"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -500,7 +525,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Hardware Gyroscope"
+                            android:text="@string/ui_hardware_gyroscope"
                             android:textColor="@color/text_high"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -509,7 +534,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Use device rotation sensors for AR"
+                            android:text="@string/ui_use_device_rotation_sensors_for_ar"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
 
@@ -530,7 +555,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="On"
+                                android:text="@string/ui_on"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
 
@@ -543,7 +568,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="Off"
+                                android:text="@string/ui_off"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
                         </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -557,7 +582,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Screen Dragging"
+                            android:text="@string/ui_screen_dragging"
                             android:textColor="@color/text_high"
                             android:textSize="15sp"
                             android:textStyle="bold" />
@@ -566,7 +591,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="Drag to look around (Fallback)"
+                            android:text="@string/ui_drag_to_look_around_fallback"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
 
@@ -587,7 +612,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="On"
+                                android:text="@string/ui_on"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
 
@@ -600,7 +625,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:paddingHorizontal="4dp"
-                                android:text="Off"
+                                android:text="@string/ui_off"
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
                         </com.google.android.material.button.MaterialButtonToggleGroup>
@@ -615,7 +640,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="ACCOUNT"
+                android:text="@string/ui_account"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -645,7 +670,7 @@
                             android:id="@+id/tv_account_user_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Logged in as"
+                            android:text="@string/ui_logged_in_as"
                             android:textColor="@color/text_high"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -655,7 +680,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/tv_account_user_title"
-                            android:text="Explorer"
+                            android:text="@string/ui_explorer"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
 
@@ -663,7 +688,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentEnd="true"
-                            android:text="Active"
+                            android:text="@string/ui_active"
                             android:textColor="@color/type_grass"
                             android:textSize="12sp"
                             android:textStyle="bold" />
@@ -675,7 +700,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
-                        android:text="Manage Account"
+                        android:text="@string/ui_manage_account"
                         android:textColor="@color/text_high"
                         app:strokeColor="@color/border_10" />
 
@@ -684,7 +709,7 @@
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Log Out"
+                        android:text="@string/ui_log_out"
                         android:textColor="@color/poke_red"
                         app:strokeColor="@color/poke_red" />
 
@@ -698,7 +723,7 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1"
-                android:text="ABOUT"
+                android:text="@string/ui_about"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -727,7 +752,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Version"
+                            android:text="@string/ui_version"
                             android:textColor="@color/text_high"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -752,7 +777,7 @@
                             android:id="@+id/tv_pokeapi_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Data Source"
+                            android:text="@string/ui_data_source"
                             android:textColor="@color/text_high"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -761,7 +786,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/tv_pokeapi_title"
-                            android:text="Pokémon data via PokéAPI"
+                            android:text="@string/ui_pok_mon_data_via_pok_api"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
 
@@ -770,7 +795,7 @@
                             android:layout_height="16dp"
                             android:layout_alignParentEnd="true"
                             android:layout_centerVertical="true"
-                            android:contentDescription="Link"
+                            android:contentDescription="@string/ui_link"
                             android:src="@drawable/ic_chevron_right" />
                     </RelativeLayout>
 

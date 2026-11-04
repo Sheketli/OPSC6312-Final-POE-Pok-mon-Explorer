@@ -81,9 +81,9 @@ class CollectionFragment : Fragment() {
             b.rvCollectionGrid.visibility = View.GONE
             b.tvCollectionEmpty.visibility = View.VISIBLE
             b.tvEmptyMsg.text = if (isShowingFavourites) {
-                "No Favourites Yet\nTap the heart icon on any Pokémon to add it here."
+                getString(R.string.ui_no_favourites_yet_ntap_the_heart_icon_on_any_pok_mon_to_add_it_here)
             } else {
-                "No Pokémon Caught\nMark Pokémon as caught from their detail page."
+                getString(R.string.empty_caught)
             }
             pokemonAdapter.submitList(emptyList())
             return

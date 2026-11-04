@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Type Guide"
+            android:text="@string/ui_type_guide"
             android:textColor="@color/text_high"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -25,7 +25,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:layout_marginBottom="16dp"
-            android:text="Select a type to see matchups"
+            android:text="@string/ui_select_a_type_to_see_matchups"
             android:textColor="@color/text_low"
             android:textSize="12sp" />
 
@@ -57,7 +57,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentStart="true"
-                        android:text="Fire Type"
+                        android:text="@string/ui_fire_type"
                         android:textColor="@color/text_high"
                         android:textSize="18sp"
                         android:textStyle="bold" />
@@ -67,7 +67,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_alignParentEnd="true"
-                        android:text="Clear"
+                        android:text="@string/ui_clear"
                         android:textColor="@color/text_low"
                         android:textSize="12sp" />
                 </RelativeLayout>
@@ -85,7 +85,7 @@
                     android:layout_height="44dp"
                     android:layout_marginTop="16dp"
                     android:backgroundTint="@color/poke_red"
-                    android:text="View Pokémon →"
+                    android:text="@string/ui_view_pok_mon"
                     android:textColor="@color/text_high"
                     android:textSize="14sp"
                     android:textStyle="bold"
@@ -99,7 +99,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:letterSpacing="0.15"
-            android:text="ALL TYPES"
+            android:text="@string/ui_all_types"
             android:textColor="@color/text_faint"
             android:textSize="12sp"
             android:textStyle="bold" />

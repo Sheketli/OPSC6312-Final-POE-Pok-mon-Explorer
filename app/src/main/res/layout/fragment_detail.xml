@@ -24,7 +24,7 @@
                 android:layout_height="38dp"
                 android:layout_alignParentStart="true"
                 android:background="@drawable/bg_circle_button"
-                android:contentDescription="Back"
+                android:contentDescription="@string/ui_back"
                 android:padding="10dp"
                 android:src="@drawable/ic_back" />
 
@@ -39,7 +39,7 @@
                     android:layout_width="38dp"
                     android:layout_height="38dp"
                     android:background="@drawable/bg_circle_button"
-                    android:contentDescription="Favourite"
+                    android:contentDescription="@string/ui_favourite"
                     android:padding="10dp"
                     android:src="@drawable/ic_heart" />
 
@@ -49,7 +49,7 @@
                     android:layout_height="38dp"
                     android:layout_marginStart="8dp"
                     android:background="@drawable/bg_circle_button"
-                    android:contentDescription="Compare"
+                    android:contentDescription="@string/ui_compare"
                     android:padding="10dp"
                     android:src="@drawable/ic_swap" />
             </LinearLayout>
@@ -105,7 +105,7 @@
                         android:id="@+id/iv_detail_artwork"
                         android:layout_width="180dp"
                         android:layout_height="180dp"
-                        android:contentDescription="Artwork" />
+                        android:contentDescription="@string/ui_artwork" />
 
                     <TextView
                         android:id="@+id/tv_detail_name"
@@ -155,7 +155,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="My Notes"
+                                android:text="@string/ui_my_notes"
                                 android:textColor="@color/text_high"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -164,7 +164,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:src="@drawable/ic_edit"
-                                android:contentDescription="Edit Note"
+                                android:contentDescription="@string/ui_edit_note"
                                 app:tint="@color/text_low" />
                         </LinearLayout>
 
@@ -202,7 +202,7 @@
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Normal"
+                            android:text="@string/ui_normal"
                             android:textColor="@color/text_high" />
 
                         <com.google.android.material.button.MaterialButton
@@ -210,7 +210,7 @@
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Shiny ✦"
+                            android:text="@string/ui_shiny"
                             android:textColor="@color/text_high" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -262,7 +262,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Height"
+                            android:text="@string/ui_height"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -306,7 +306,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Weight"
+                            android:text="@string/ui_weight"
                             android:textColor="@color/text_low"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -318,7 +318,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="Abilities"
+                android:text="@string/ui_abilities"
                 android:textColor="@color/text_high"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -339,7 +339,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Base Stats"
+                    android:text="@string/ui_base_stats"
                     android:textColor="@color/text_high"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -369,7 +369,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="Moves"
+                android:text="@string/ui_moves"
                 android:textColor="@color/text_high"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -398,7 +398,7 @@
                     android:insetBottom="0dp"
                     android:maxLines="1"
                     android:paddingHorizontal="4dp"
-                    android:text="Favourite"
+                    android:text="@string/ui_favourite"
                     android:textColor="@color/text_high"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -420,7 +420,7 @@
                     android:insetBottom="0dp"
                     android:maxLines="1"
                     android:paddingHorizontal="4dp"
-                    android:text="Catch"
+                    android:text="@string/ui_catch"
                     android:textColor="#1A1200"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -442,7 +442,7 @@
                     android:insetBottom="0dp"
                     android:maxLines="1"
                     android:paddingHorizontal="4dp"
-                    android:text="Compare"
+                    android:text="@string/ui_compare"
                     android:textColor="@color/text_high"
                     android:textSize="11sp"
                     android:textStyle="bold"

@@ -1,5 +1,6 @@
 package com.pokemon.explorer.ui.fragments
 
+import com.pokemon.explorer.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -60,7 +61,7 @@ class AccountManagementFragment : Fragment() {
                 binding.tvError.visibility = View.GONE
                 appState.updateUsername(newUsername)
             } else {
-                Toast.makeText(requireContext(), "Username cannot be empty", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.ui_username_cannot_be_empty), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -69,14 +70,14 @@ class AccountManagementFragment : Fragment() {
             val confirmPassword = binding.etConfirmPassword.text?.toString().orEmpty()
             
             if (newPassword.isEmpty()) {
-                Toast.makeText(requireContext(), "Password cannot be empty", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.ui_password_cannot_be_empty), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             
             if (newPassword != confirmPassword) {
                 binding.tvError.visibility = View.VISIBLE
                 binding.tvError.setTextColor(requireContext().getColor(com.pokemon.explorer.R.color.poke_red))
-                binding.tvError.text = "Passwords do not match"
+                binding.tvError.text = getString(R.string.ui_passwords_do_not_match)
                 return@setOnClickListener
             }
 

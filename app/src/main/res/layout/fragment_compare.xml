@@ -25,7 +25,7 @@
                 android:layout_width="38dp"
                 android:layout_height="38dp"
                 android:background="@drawable/bg_circle_button"
-                android:contentDescription="Back"
+                android:contentDescription="@string/ui_back"
                 android:padding="10dp"
                 android:src="@drawable/ic_back" />
 
@@ -33,7 +33,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                android:text="Compare Pokémon"
+                android:text="@string/ui_compare_pok_mon"
                 android:textColor="@color/text_high"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -182,7 +182,7 @@
                     android:layout_height="40dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input_field"
-                    android:hint="Name or #"
+                    android:hint="@string/ui_name_or"
                     android:imeOptions="actionDone"
                     android:inputType="text"
                     android:paddingHorizontal="10dp"
@@ -198,7 +198,7 @@
                     android:backgroundTint="@color/poke_red"
                     android:minWidth="0dp"
                     android:paddingHorizontal="10dp"
-                    android:text="Go"
+                    android:text="@string/ui_go"
                     android:textColor="@color/text_high"
                     android:textSize="12sp"
                     app:cornerRadius="8dp" />
@@ -217,7 +217,7 @@
                     android:layout_height="40dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_input_field"
-                    android:hint="Name or #"
+                    android:hint="@string/ui_name_or"
                     android:imeOptions="actionDone"
                     android:inputType="text"
                     android:paddingHorizontal="10dp"
@@ -233,7 +233,7 @@
                     android:backgroundTint="@color/compare_blue"
                     android:minWidth="0dp"
                     android:paddingHorizontal="10dp"
-                    android:text="Go"
+                    android:text="@string/ui_go"
                     android:textColor="@color/text_high"
                     android:textSize="12sp"
                     app:cornerRadius="8dp" />
@@ -257,7 +257,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:text="Stat Comparison"
+                android:text="@string/ui_stat_comparison"
                 android:textColor="@color/text_high"
                 android:textSize="16sp"
                 android:textStyle="bold" />

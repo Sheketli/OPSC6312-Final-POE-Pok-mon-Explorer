@@ -11,6 +11,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.chip.Chip
+import com.pokemon.explorer.R
 import com.pokemon.explorer.data.PokeApi
 import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.databinding.FragmentSearchBinding
@@ -139,7 +140,7 @@ class SearchFragment : Fragment() {
                 appState.addSearchToHistory(trimmed)
                 b1.rvSearchResults.visibility = View.VISIBLE
                 b1.tvResultCount.visibility = View.VISIBLE
-                b1.tvResultCount.text = "${offlineResults.size} Pokémon found"
+                b1.tvResultCount.text = getString(R.string.results_found, offlineResults.size)
                 b1.tvEmptyState.visibility = View.GONE
                 
                 val summaries = offlineResults.map {
@@ -154,7 +155,7 @@ class SearchFragment : Fragment() {
                         appState.addSearchToHistory(trimmed)
                         b1.rvSearchResults.visibility = View.VISIBLE
                         b1.tvResultCount.visibility = View.VISIBLE
-                        b1.tvResultCount.text = "1 Pokémon found"
+                        b1.tvResultCount.text = getString(R.string.results_found, 1)
                         b1.tvEmptyState.visibility = View.GONE
                         pokemonAdapter.submitList(listOf(result))
                         return@launch

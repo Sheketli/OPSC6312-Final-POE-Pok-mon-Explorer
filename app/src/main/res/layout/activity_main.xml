@@ -38,7 +38,7 @@
         android:layout_height="64dp"
         android:layout_marginBottom="16dp"
         android:backgroundTint="@color/app_background_deep"
-        android:contentDescription="Launch Live AR Scanner"
+        android:contentDescription="@string/ui_launch_live_ar_scanner"
         android:src="@drawable/ic_pokeball"
         android:transitionName="transition_pokeball_to_camera"
         app:borderWidth="0dp"

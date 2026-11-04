@@ -18,14 +18,14 @@
         <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:contentDescription="Collection Icon"
+            android:contentDescription="@string/ui_collection_icon"
             android:src="@drawable/ic_launcher_foreground" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
-            android:text="My Collection"
+            android:text="@string/ui_my_collection"
             android:textColor="@color/text_high"
             android:textSize="22sp"
             android:textStyle="bold" />
@@ -87,7 +87,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Pokédex Progress"
+                    android:text="@string/ui_pok_dex_progress"
                     android:textColor="@color/text_high"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -96,7 +96,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Your Pokémon collection"
+                    android:text="@string/ui_your_pok_mon_collection"
                     android:textColor="@color/text_low"
                     android:textSize="12sp" />
 
@@ -114,7 +114,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Pokémon caught"
+                    android:text="@string/ui_pok_mon_caught"
                     android:textColor="@color/text_low"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -136,7 +136,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="Favourites"
+            android:text="@string/ui_favourites"
             android:textColor="@color/text_high"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -150,7 +150,7 @@
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:text="Caught"
+            android:text="@string/ui_caught"
             android:textColor="@color/text_high"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -174,7 +174,7 @@
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:layout_marginBottom="16dp"
-            android:contentDescription="Empty Collection"
+            android:contentDescription="@string/ui_empty_collection"
             android:src="@drawable/ic_launcher_foreground" />
 
         <TextView
@@ -182,7 +182,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="No Favourites Yet\nTap the heart icon on any Pokémon to add it here."
+            android:text="@string/ui_no_favourites_yet_ntap_the_heart_icon_on_any_pok_mon_to_add_it_here"
             android:textColor="@color/text_low"
             android:textSize="14sp" />
     </LinearLayout>

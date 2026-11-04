@@ -30,7 +30,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.15"
-                    android:text="WELCOME BACK, EXPLORER"
+                    android:text="@string/ui_welcome_back_explorer"
                     android:textColor="@color/text_low"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -52,7 +52,7 @@
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
                 android:background="@drawable/bg_circle_button"
-                android:contentDescription="Settings"
+                android:contentDescription="@string/ui_settings"
                 android:padding="10dp"
                 android:src="@drawable/ic_settings" />
         </RelativeLayout>
@@ -75,7 +75,7 @@
             <ImageView
                 android:layout_width="18dp"
                 android:layout_height="18dp"
-                android:contentDescription="Search"
+                android:contentDescription="@string/ui_search"
                 android:src="@drawable/ic_search" />
 
             <TextView
@@ -83,14 +83,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Search Pokémon by name or #"
+                android:text="@string/ui_search_pok_mon_by_name_or"
                 android:textColor="@color/text_low"
                 android:textSize="14sp" />
 
             <ImageView
                 android:layout_width="25dp"
                 android:layout_height="25dp"
-                android:contentDescription="Pokeball"
+                android:contentDescription="@string/ui_pokeball"
                 android:src="@drawable/ic_pokeball" />
         </LinearLayout>
 
@@ -168,7 +168,7 @@
                         android:layout_height="85dp"
                         android:layout_alignParentEnd="true"
                         android:layout_centerVertical="true"
-                        android:contentDescription="Featured Pokemon" />
+                        android:contentDescription="@string/ui_featured_pokemon" />
                 </RelativeLayout>
 
                 <LinearLayout
@@ -188,7 +188,7 @@
                         android:insetBottom="0dp"
                         android:maxLines="1"
                         android:paddingHorizontal="8dp"
-                        android:text="View Details"
+                        android:text="@string/ui_view_details"
                         android:textColor="@color/text_high"
                         android:textSize="12sp"
                         android:textStyle="bold"
@@ -205,7 +205,7 @@
                         android:insetBottom="0dp"
                         android:maxLines="1"
                         android:paddingHorizontal="8dp"
-                        android:text="Random"
+                        android:text="@string/ui_random"
                         android:textColor="#1A1200"
                         android:textSize="12sp"
                         android:textStyle="bold"
@@ -246,7 +246,7 @@
                 android:id="@+id/tv_section_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="All Pokémon"
+                android:text="@string/ui_all_pok_mon"
                 android:textColor="@color/text_high"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -266,7 +266,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
-                android:text="See all →"
+                android:text="@string/ui_see_all"
                 android:textColor="@color/text_low"
                 android:textSize="12sp" />
         </RelativeLayout>
