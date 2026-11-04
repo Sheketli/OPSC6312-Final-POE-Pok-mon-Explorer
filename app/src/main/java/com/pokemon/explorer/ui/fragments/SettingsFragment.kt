@@ -11,6 +11,11 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import android.os.Build
 import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.pokemon.explorer.R
 import com.pokemon.explorer.data.PokeApi
 import com.pokemon.explorer.data.sync.BulkDownloadService
@@ -25,6 +30,17 @@ class SettingsFragment : Fragment() {
     private val binding get() = _binding!!
     private val appState: AppState by activityViewModels()
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        binding.toggleNotifications.check(if (isGranted) R.id.btn_notif_on else R.id.btn_notif_off)
+        if (isGranted) {
+            Toast.makeText(requireContext(), "Notifications enabled", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(requireContext(), "Notifications disabled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -38,6 +54,74 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.btnBack.setOnClickListener { appState.goBack() }
+
+        // Setup Notifications Switch
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            
+            binding.toggleNotifications.check(if (hasPermission) R.id.btn_notif_on else R.id.btn_notif_off)
+
+            binding.toggleNotifications.addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (isChecked) {
+                    if (checkedId == R.id.btn_notif_on) {
+                        if (ContextCompat.checkSelfPermission(
+                                requireContext(),
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            // Request permission
+                            if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                                MaterialAlertDialogBuilder(requireContext())
+                                    .setTitle("Enable Notifications")
+                                    .setMessage("Please allow notifications in order to receive alerts.")
+                                    .setPositiveButton("OK") { _, _ ->
+                                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    .setNegativeButton("Cancel") { dialog, _ ->
+                                        binding.toggleNotifications.check(R.id.btn_notif_off)
+                                        dialog.dismiss()
+                                    }
+                                    .show()
+                            } else {
+                                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        }
+                    } else if (checkedId == R.id.btn_notif_off) {
+                        // Turn off notifications via system settings
+                        Toast.makeText(requireContext(), "To disable notifications, please go to Android Settings.", Toast.LENGTH_LONG).show()
+                        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
+                        }
+                        startActivity(intent)
+                        // Keep toggle on because we don't know if they actually disabled it
+                        binding.toggleNotifications.check(R.id.btn_notif_on)
+                    }
+                }
+            }
+        } else {
+            // For older Android versions, notifications are enabled by default and cannot be easily toggled off by permission alone.
+            binding.toggleNotifications.check(R.id.btn_notif_on)
+            binding.toggleNotifications.addOnButtonCheckedListener { _, checkedId, isChecked ->
+                if (isChecked && checkedId == R.id.btn_notif_off) {
+                    Toast.makeText(requireContext(), "To disable notifications, please go to Android Settings.", Toast.LENGTH_LONG).show()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
+                        }
+                        startActivity(intent)
+                    } else {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:${requireContext().packageName}")
+                        }
+                        startActivity(intent)
+                    }
+                    binding.toggleNotifications.check(R.id.btn_notif_on)
+                }
+            }
+        }
 
         appState.currentUser.observe(viewLifecycleOwner) { user ->
             _binding?.tvAccountUsername?.text = user?.username ?: "Explorer"

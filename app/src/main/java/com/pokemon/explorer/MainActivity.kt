@@ -22,6 +22,13 @@ import com.pokemon.explorer.ui.fragments.SearchFragment
 import com.pokemon.explorer.ui.fragments.SettingsFragment
 import com.pokemon.explorer.ui.fragments.AccountManagementFragment
 import com.pokemon.explorer.ui.fragments.SplashFragment
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.pokemon.explorer.ui.fragments.TypeGuideFragment
 
 class MainActivity : AppCompatActivity() {
@@ -29,10 +36,50 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val appState: AppState by viewModels()
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // FCM SDK (and your app) can post notifications.
+            Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show()
+        } else {
+            // Inform user that your app will not show notifications.
+            Toast.makeText(this, "Notifications disabled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun askNotificationPermission() {
+        // This is only necessary for API level >= 33 (TIRAMISU)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                // FCM SDK (and your app) can post notifications.
+            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                // Display an educational UI explaining to the user the features that will be enabled
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Enable Notifications")
+                    .setMessage("Pokémon Explorer uses notifications to alert you about rare spawns and game events. Please enable them to stay updated!")
+                    .setPositiveButton("OK") { _, _ ->
+                        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    .setNegativeButton("No thanks") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            } else {
+                // Directly ask for the permission
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        askNotificationPermission()
 
         setupBottomNavigation()
         setupBackHandler()
