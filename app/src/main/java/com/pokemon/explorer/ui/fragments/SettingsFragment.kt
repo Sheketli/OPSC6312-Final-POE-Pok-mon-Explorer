@@ -57,13 +57,13 @@ class SettingsFragment : Fragment() {
 
         binding.btnBack.setOnClickListener { appState.goBack() }
 
-        val languageCodes = arrayOf("en", "st")
-        val languageNames = arrayOf("English", "Sesotho")
+        val languageCodes = resources.getStringArray(R.array.supported_language_codes)
+        val languageNames = resources.getStringArray(R.array.supported_language_names)
         val selectedLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language
             ?: resources.configuration.locales[0].language
-        binding.btnLanguage.text = languageNames[if (selectedLanguage == "st") 1 else 0]
+        val currentIndex = languageCodes.indexOf(selectedLanguage).coerceAtLeast(0)
+        binding.btnLanguage.text = languageNames[currentIndex]
         binding.btnLanguage.setOnClickListener {
-            val currentIndex = if (selectedLanguage == "st") 1 else 0
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.ui_language)
                 .setSingleChoiceItems(languageNames, currentIndex) { dialog, index ->
