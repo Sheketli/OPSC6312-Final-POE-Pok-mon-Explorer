@@ -85,14 +85,10 @@ class MainActivity : AppCompatActivity() {
         setupBackHandler()
         
         binding.fabCameraLauncher.setOnClickListener {
-            val intent = android.content.Intent(this, CameraArActivity::class.java)
-            val sharedElementOptions = ActivityOptionsCompat.makeSceneTransitionAnimation(
-                this,
-                binding.fabCameraLauncher,
-                "transition_pokeball_to_camera"
-            )
-            startActivity(intent, sharedElementOptions.toBundle())
+            launchCamera()
         }
+
+        checkNotificationIntent(intent)
 
         appState.currentFrame.observe(this) { frame ->
             if (!appState.isSplashFinished) {
@@ -116,6 +112,56 @@ class MainActivity : AppCompatActivity() {
                 binding.bottomNavigation.selectedItemId = itemId
             }
         }
+    }
+
+    private fun launchCamera(extras: Bundle? = null, useSharedTransition: Boolean = true) {
+        val intent = android.content.Intent(this, CameraArActivity::class.java)
+        extras?.let { intent.putExtras(it) }
+        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        
+        if (useSharedTransition && binding.fabCameraLauncher.isLaidOut) {
+            val sharedElementOptions = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this,
+                binding.fabCameraLauncher,
+                "transition_pokeball_to_camera"
+            )
+            startActivity(intent, sharedElementOptions.toBundle())
+        } else {
+            startActivity(intent)
+        }
+    }
+
+    private fun checkNotificationIntent(intent: android.content.Intent?) {
+        if (intent != null && intent.hasExtra("rare_pokemon_id")) {
+            // FCM data payloads are sometimes delivered as Strings, but our NotificationHelper uses typed values.
+            val pokemonId = intent.getIntExtra("rare_pokemon_id", -1).let {
+                if (it == -1) intent.getStringExtra("rare_pokemon_id")?.toIntOrNull() ?: -1 else it
+            }
+
+            val expiresAt = intent.getLongExtra("expires_at", -1L).let {
+                if (it == -1L) intent.getStringExtra("expires_at")?.toLongOrNull() ?: -1L else it
+            }
+            
+            // Remove the extras so we don't process this same notification intent again 
+            // if the activity is recreated (e.g. on rotation)
+            intent.removeExtra("rare_pokemon_id")
+            intent.removeExtra("expires_at")
+            
+            if (pokemonId != -1 && expiresAt != -1L) {
+                // If it's a rare spawn notification, launch the camera immediately without shared transition
+                val extras = Bundle().apply {
+                    putInt("rare_pokemon_id", pokemonId)
+                    putLong("expires_at", expiresAt)
+                }
+                launchCamera(extras, useSharedTransition = false)
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        checkNotificationIntent(intent)
     }
 
     private fun setupBottomNavigation() {

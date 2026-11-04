@@ -53,6 +53,7 @@ class CameraArActivity : AppCompatActivity() {
     private lateinit var tvTypePrimary: TextView
     private lateinit var tvArPokemonDescription: TextView
     private lateinit var btnCatchAction: Button
+    private lateinit var tvRareSpawnTimer: TextView
 
     private lateinit var cameraExecutor: ExecutorService
     private val cameraPermissionRequestCode = 9911
@@ -64,6 +65,11 @@ class CameraArActivity : AppCompatActivity() {
     private var targetedPokemonId: Int? = null
     private var isFetching = false
     private val scope = CoroutineScope(Dispatchers.Main + Job())
+    
+    // Rare Spawn logic
+    private var rareSpawnId: Int = -1
+    private var rareSpawnExpiresAt: Long = -1L
+    private var spawnTimer: android.os.CountDownTimer? = null
     
     // Preferences
     private var isGyroscopeEnabled = true
@@ -85,9 +91,17 @@ class CameraArActivity : AppCompatActivity() {
             if (event == null) return
             
             val rotationMatrix = FloatArray(9)
+            val remappedMatrix = FloatArray(9)
             val orientationAngles = FloatArray(3)
+            
             SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-            SensorManager.getOrientation(rotationMatrix, orientationAngles)
+            SensorManager.remapCoordinateSystem(
+                rotationMatrix,
+                SensorManager.AXIS_X,
+                SensorManager.AXIS_Z,
+                remappedMatrix
+            )
+            SensorManager.getOrientation(remappedMatrix, orientationAngles)
             
             val currentYaw = orientationAngles[0]
             val currentPitch = orientationAngles[1]
@@ -103,19 +117,21 @@ class CameraArActivity : AppCompatActivity() {
             if (yawDelta > PI) yawDelta -= (2 * PI).toFloat()
             if (yawDelta < -PI) yawDelta += (2 * PI).toFloat()
             
-            val pitchDelta = currentPitch - initialPitch
+            var pitchDelta = currentPitch - initialPitch
+            if (pitchDelta > PI) pitchDelta -= (2 * PI).toFloat()
+            if (pitchDelta < -PI) pitchDelta += (2 * PI).toFloat()
             
             val displayMetrics = resources.displayMetrics
             val fovPixels = displayMetrics.widthPixels * 1.5f
             
-            // Map the physical rotation of the device to the virtual world offset.
-            // A positive yaw means user turned right, so the world should shift left (negative X).
-            val newOffsetX = -(yawDelta / (PI / 3)).toFloat() * fovPixels
-            val newOffsetY = (pitchDelta / (PI / 3)).toFloat() * displayMetrics.heightPixels * 1.5f
+            // Map physical rotation in remapped portrait space to virtual world offset
+            val targetOffsetX = (yawDelta / (PI / 3)).toFloat() * fovPixels
+            val targetOffsetY = -(pitchDelta / (PI / 3)).toFloat() * displayMetrics.heightPixels * 1.2f
             
-            if (!newOffsetX.isNaN() && !newOffsetY.isNaN()) {
-                cameraOffsetX = newOffsetX
-                cameraOffsetY = newOffsetY
+            if (!targetOffsetX.isNaN() && !targetOffsetY.isNaN()) {
+                // Low-pass filter (smoothing) to prevent sudden jumps and runaway movements
+                cameraOffsetX += (targetOffsetX - cameraOffsetX) * 0.2f
+                cameraOffsetY += (targetOffsetY - cameraOffsetY) * 0.2f
                 updatePokemonPositions()
             }
         }
@@ -150,6 +166,10 @@ class CameraArActivity : AppCompatActivity() {
         tvTypePrimary = findViewById(R.id.tvTypePrimary)
         tvArPokemonDescription = findViewById(R.id.tvArPokemonDescription)
         btnCatchAction = findViewById(R.id.btnCatchAction)
+        tvRareSpawnTimer = findViewById(R.id.tvRareSpawnTimer)
+
+        rareSpawnId = intent.getIntExtra("rare_pokemon_id", -1)
+        rareSpawnExpiresAt = intent.getLongExtra("expires_at", -1L)
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -171,11 +191,15 @@ class CameraArActivity : AppCompatActivity() {
             )
         }
 
-        // Spawn multiple Pokémon after a short delay to simulate AR
-        Handler(Looper.getMainLooper()).postDelayed({
-            spawnArPokemons()
-            startCrosshairTracking()
-        }, 1500)
+        if (rareSpawnId != -1 && rareSpawnExpiresAt != -1L) {
+            handleRareSpawn()
+        } else {
+            // Spawn multiple Pokémon after a short delay to simulate AR
+            Handler(Looper.getMainLooper()).postDelayed({
+                spawnArPokemons()
+                startCrosshairTracking()
+            }, 1500)
+        }
 
         val appState = ViewModelProvider(this)[AppState::class.java]
 
@@ -205,6 +229,19 @@ class CameraArActivity : AppCompatActivity() {
         }
     }
     
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        
+        rareSpawnId = intent.getIntExtra("rare_pokemon_id", -1)
+        rareSpawnExpiresAt = intent.getLongExtra("expires_at", -1L)
+        
+        if (rareSpawnId != -1 && rareSpawnExpiresAt != -1L) {
+            spawnTimer?.cancel()
+            handleRareSpawn()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (isGyroscopeEnabled) {
@@ -217,6 +254,62 @@ class CameraArActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         sensorManager.unregisterListener(sensorEventListener)
+    }
+
+    private fun handleRareSpawn() {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime > rareSpawnExpiresAt) {
+            Toast.makeText(this, "Oh no! The rare Pokémon fled...", Toast.LENGTH_LONG).show()
+            
+            rareSpawnId = -1
+            rareSpawnExpiresAt = -1L
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                spawnArPokemons()
+                startCrosshairTracking()
+            }, 1500)
+            return
+        }
+
+        tvRareSpawnTimer.visibility = View.VISIBLE
+        val timeLeft = rareSpawnExpiresAt - currentTime
+
+        spawnTimer = object : android.os.CountDownTimer(timeLeft, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secondsRemaining = (millisUntilFinished / 1000) % 60
+                val minutesRemaining = (millisUntilFinished / 1000) / 60
+                tvRareSpawnTimer.text = String.format("%02d:%02d", minutesRemaining, secondsRemaining)
+            }
+
+            override fun onFinish() {
+                Toast.makeText(this@CameraArActivity, "The rare Pokémon ran away!", Toast.LENGTH_LONG).show()
+                tvRareSpawnTimer.visibility = View.GONE
+                
+                // Remove the rare pokemon from the screen
+                val fledPoke = arPokemons.find { it.id == rareSpawnId }
+                if (fledPoke != null) {
+                    arOverlayContainer.removeView(fledPoke.view)
+                    arPokemons.remove(fledPoke)
+                }
+                
+                if (targetedPokemonId == rareSpawnId) {
+                    targetedPokemonId = null
+                    cardPokemonMetrics.visibility = View.GONE
+                }
+                
+                // Reset rare spawn tracking
+                rareSpawnId = -1
+                rareSpawnExpiresAt = -1L
+                
+                // Spawn normal pokémons to continue the hunt
+                spawnArPokemons()
+            }
+        }.start()
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            spawnArRarePokemon(rareSpawnId)
+            startCrosshairTracking()
+        }, 1500)
     }
 
     private fun setupCameraTracking() {
@@ -276,7 +369,51 @@ class CameraArActivity : AppCompatActivity() {
         }
     }
 
+    private fun spawnArRarePokemon(pokemonId: Int) {
+        arPokemons.clear()
+        arOverlayContainer.removeAllViews()
+
+        // Reset orientation calibration so rare spawn centers relative to current hold position
+        initialYaw = Float.NaN
+        initialPitch = Float.NaN
+        cameraOffsetX = 0f
+        cameraOffsetY = 0f
+
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels.toFloat()
+        val screenHeight = displayMetrics.heightPixels.toFloat()
+
+        // Place near reticle center with a subtle, easily manageable offset
+        val randomOffsetX = kotlin.random.Random.nextInt(-60, 60).toFloat()
+        val randomOffsetY = kotlin.random.Random.nextInt(-40, 40).toFloat()
+        val worldX = (screenWidth / 2f) + randomOffsetX
+        val worldY = (screenHeight * 0.45f) + randomOffsetY
+
+        val imageView = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(400, 400) // Larger size for AR presence
+            // Load sprite directly via network URL
+            load("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/$pokemonId.png") {
+                crossfade(true)
+                placeholder(R.drawable.ic_pokeball) // Show generic fallback while fetching high-res image
+                error(R.drawable.ic_pokeball)
+            }
+        }
+        
+        arOverlayContainer.addView(imageView)
+        val arPoke = ArPokemon(imageView, worldX, worldY, pokemonId)
+        arPokemons.add(arPoke)
+        
+        animateBreathing(imageView)
+        updatePokemonPositions()
+    }
+
     private fun spawnArPokemons() {
+        // Reset orientation calibration
+        initialYaw = Float.NaN
+        initialPitch = Float.NaN
+        cameraOffsetX = 0f
+        cameraOffsetY = 0f
+
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
@@ -294,10 +431,9 @@ class CameraArActivity : AppCompatActivity() {
             var attempts = 0
             
             while (!valid && attempts < 20) {
-                // Spread them across a wide virtual cylinder around the user
-                worldX = Random.nextInt(-screenWidth * 3, screenWidth * 3).toFloat()
-                // Keep Y mostly in the bottom half of the screen to look grounded
-                worldY = Random.nextInt((screenHeight * 0.3).toInt(), (screenHeight * 0.8).toInt()).toFloat()
+                // Spread them in a comfortable arc around the user
+                worldX = Random.nextInt((-screenWidth * 1.2f).toInt(), (screenWidth * 1.2f).toInt()).toFloat()
+                worldY = Random.nextInt((screenHeight * 0.35f).toInt(), (screenHeight * 0.65f).toInt()).toFloat()
                 
                 valid = true
                 for (pos in existingPositions) {

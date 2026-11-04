@@ -214,6 +214,19 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        binding.btnTestNotification.setOnClickListener {
+            val rarePokemonId = 150 // Mewtwo
+            val rarePokemonName = "Mewtwo"
+            val expiryTimeMillis = System.currentTimeMillis() + (5 * 60 * 1000) // 5 minutes from now
+            com.pokemon.explorer.utils.NotificationHelper.sendRareSpawnNotification(
+                requireContext(),
+                rarePokemonId,
+                rarePokemonName,
+                expiryTimeMillis
+            )
+            Toast.makeText(requireContext(), "Test notification sent! Check your notification tray.", Toast.LENGTH_SHORT).show()
+        }
+
         binding.btnLogout.setOnClickListener {
             appState.logout()
         }

@@ -13,6 +13,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         // Check if message contains a data payload.
         if (remoteMessage.data.isNotEmpty()) {
             Log.d(TAG, "Message data payload: ${remoteMessage.data}")
+            
+            val pokemonIdStr = remoteMessage.data["rare_pokemon_id"]
+            val pokemonName = remoteMessage.data["rare_pokemon_name"]
+            val expiresAtStr = remoteMessage.data["expires_at"]
+            
+            if (pokemonIdStr != null && pokemonName != null && expiresAtStr != null) {
+                val pokemonId = pokemonIdStr.toIntOrNull()
+                val expiresAt = expiresAtStr.toLongOrNull()
+                
+                if (pokemonId != null && expiresAt != null) {
+                    com.pokemon.explorer.utils.NotificationHelper.sendRareSpawnNotification(
+                        this, pokemonId, pokemonName, expiresAt
+                    )
+                }
+            }
         }
 
         // Check if message contains a notification payload.

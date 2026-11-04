@@ -5,8 +5,15 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.pokemon.explorer.worker.RareSpawnWorker
 
 class PokemonApplication : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        // Automatically start the background service for rare spawns when the app launches!
+        RareSpawnWorker.start(this)
+    }
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)

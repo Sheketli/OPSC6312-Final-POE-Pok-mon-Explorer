@@ -433,6 +433,23 @@ class AppState(application: Application) : AndroidViewModel(application) {
         _currentFrame.value = stacks.getValue(TabId.Explore).last()
     }
 
+    fun catchPokemon(id: Int) {
+        val user = _currentUser.value ?: return
+        val currentCaught = _caught.value ?: emptySet()
+        val newCaught = currentCaught + id
+        
+        _caught.value = newCaught
+        prefs.edit().putStringSet("caught_${user.username}", newCaught.map { it.toString() }.toSet()).apply()
+        
+        // Also add to collection if caught (treat caught as favourites for now)
+        val currentFavourites = _favourites.value ?: emptySet()
+        if (!currentFavourites.contains(id)) {
+            val newFavourites = currentFavourites + id
+            _favourites.value = newFavourites
+            prefs.edit().putStringSet("favourites_${user.username}", newFavourites.map { it.toString() }.toSet()).apply()
+        }
+    }
+
     private fun Set<Int>.toggle(id: Int): Set<Int> =
         if (contains(id)) this - id else this + id
 

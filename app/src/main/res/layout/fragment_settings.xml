@@ -445,6 +445,19 @@
                                 android:textColor="@color/text_high"
                                 android:textSize="12sp" />
                         </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_test_notification"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="16dp"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            android:text="Test Rare Spawn Notification"
+                            android:textColor="@color/poke_red"
+                            android:textSize="12sp"
+                            app:strokeColor="@color/poke_red" />
                     </LinearLayout>
 
                 </LinearLayout>

@@ -13,6 +13,25 @@
         android:layout_height="match_parent"
         app:scaleType="fillCenter" />
 
+    <!-- Countdown Timer for Rare Spawns -->
+    <TextView
+        android:id="@+id/tvRareSpawnTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:background="@drawable/bg_pill"
+        android:elevation="4dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:text="05:00"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <!-- AR Overlay Container for dynamic Pokemon sprites -->
     <FrameLayout
         android:id="@+id/arOverlayContainer"
