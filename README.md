@@ -197,4 +197,4 @@ gradle testDebugUnitTest
 
 - **Data Source**: Pokémon statistics, abilities, moves, and flavor text provided by [PokéAPI](https://pokeapi.co).
 - **Artwork & Sprites**: Official Pokémon artwork provided by the [PokeAPI Sprites](https://github.com/PokeAPI/sprites) repository.
-- **Trademarks**: Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc., and GAME FREAK inc. This software is an educational, non-commercial fan project and is not affiliated with or endorsed by Nintendo or The Pokémon Company.
+- **Trademarks**: Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc., and GAME FREAK inc. This software is an educational, non-commercial fan project and is not affiliated with or endorsed by Nintendo or The Pokémon Company .
