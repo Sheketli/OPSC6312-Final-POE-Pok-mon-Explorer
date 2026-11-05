@@ -88,41 +88,76 @@ object PokeApi {
     }
 
     suspend fun downloadPokedexIndex(): List<PokemonSummary> = withContext(Dispatchers.IO) {
-        val url = "https://beta.pokeapi.co/graphql/v1beta"
-        val query = """{"query":"query { pokemon_v2_pokemon(where: {id: {_lte: 1025}}) { id name pokemon_v2_pokemontypes { pokemon_v2_type { name } } } }"}"""
-        
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Accept", "application/json")
-            doOutput = true
-            outputStream.write(query.toByteArray())
+        try {
+            val url = "https://beta.pokeapi.co/graphql/v1beta"
+            val query = """{"query":"query { pokemon_v2_pokemon(where: {id: {_lte: 1025}}) { id name pokemon_v2_pokemontypes { pokemon_v2_type { name } } } }"}"""
+            
+            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)")
+                doOutput = true
+                outputStream.write(query.toByteArray(Charsets.UTF_8))
+            }
+
+            val status = connection.responseCode
+            if (status in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(body)
+                val data = json.optJSONObject("data")?.optJSONArray("pokemon_v2_pokemon")
+                if (data != null && data.length() > 0) {
+                    return@withContext (0 until data.length()).map { i ->
+                        val pkmn = data.getJSONObject(i)
+                        val typesArr = pkmn.optJSONArray("pokemon_v2_pokemontypes") ?: JSONArray()
+                        val typesList = (0 until typesArr.length()).map { j ->
+                            typesArr.getJSONObject(j).getJSONObject("pokemon_v2_type").getString("name")
+                        }
+                        PokemonSummary(
+                            id = pkmn.getInt("id"),
+                            name = pkmn.getString("name"),
+                            types = typesList
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
 
-        try {
-            val status = connection.responseCode
-            if (status !in 200..299) throw IOException("HTTP $status")
+        // Fallback to REST API if GraphQL endpoint fails or times out
+        return@withContext downloadPokedexIndexFromRest()
+    }
 
-            val body = connection.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(body)
-            val data = json.getJSONObject("data").getJSONArray("pokemon_v2_pokemon")
-            
-            (0 until data.length()).map { i ->
-                val pkmn = data.getJSONObject(i)
-                val typesArr = pkmn.getJSONArray("pokemon_v2_pokemontypes")
-                val typesList = (0 until typesArr.length()).map { j ->
-                    typesArr.getJSONObject(j).getJSONObject("pokemon_v2_type").getString("name")
-                }
-                PokemonSummary(
-                    id = pkmn.getInt("id"),
-                    name = pkmn.getString("name"),
-                    types = typesList
-                )
+    private fun downloadPokedexIndexFromRest(): List<PokemonSummary> {
+        return try {
+            val url = "$BASE/pokemon?limit=1025"
+            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)")
             }
-        } finally {
-            connection.disconnect()
+            if (connection.responseCode in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(body)
+                val results = json.getJSONArray("results")
+                (0 until results.length()).map { index ->
+                    val obj = results.getJSONObject(index)
+                    val name = obj.getString("name")
+                    val id = idFromUrl(obj.getString("url"))
+                    val types = getFallbackTypes(id)
+                    PokemonSummary(id = id, name = name, types = types)
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 

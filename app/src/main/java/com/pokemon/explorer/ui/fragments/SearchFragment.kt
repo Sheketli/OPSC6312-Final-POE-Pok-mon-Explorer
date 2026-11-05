@@ -60,10 +60,16 @@ class SearchFragment : Fragment() {
 
         setupChips()
 
+        val filterType = appState.currentFrame.value?.filterType
+        if (filterType != null) {
+            binding.tilSearch.hint = "Type: ${filterType.replaceFirstChar { it.uppercase() }}"
+            performSearch(binding.etSearchQuery.text?.toString().orEmpty(), filterType)
+        }
+
         binding.etSearchQuery.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                performSearch(s?.toString().orEmpty())
+                performSearch(s?.toString().orEmpty(), filterType)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -106,12 +112,12 @@ class SearchFragment : Fragment() {
         }
     }
 
-    private fun performSearch(query: String) {
+    private fun performSearch(query: String, filterType: String? = null) {
         searchJob?.cancel()
 
         val b = _binding ?: return
         val trimmed = query.trim().lowercase()
-        if (trimmed.isEmpty()) {
+        if (trimmed.isEmpty() && filterType == null) {
             b.pbSearching.visibility = View.GONE
             b.svSuggestions.visibility = View.VISIBLE
             b.rvSearchResults.visibility = View.GONE
@@ -122,6 +128,9 @@ class SearchFragment : Fragment() {
 
         b.pbSearching.visibility = View.VISIBLE
         b.svSuggestions.visibility = View.GONE
+        b.tvRecentTitle.visibility = View.GONE
+        b.cgRecentSearches.visibility = View.GONE
+        // Note: Popular searches title is hardcoded in XML without an ID initially, wait, let me check the XML.
 
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(300)
@@ -130,44 +139,64 @@ class SearchFragment : Fragment() {
             val dao = db.pokemonIndexDao()
             
             // Try to parse the query as an ID to search by number, or just by name
-            val searchId = trimmed.toIntOrNull()
-            val offlineResults = dao.search(trimmed, searchId ?: -1)
+            val queryParam = if (trimmed.isEmpty()) "" else "$trimmed%"
+            val typeParam = if (filterType.isNullOrEmpty()) "" else "%${filterType.lowercase()}%"
+            
+            val offlineResults = dao.searchWithFilter(queryParam, typeParam)
             
             val b1 = _binding ?: return@launch
             b1.pbSearching.visibility = View.GONE
 
             if (offlineResults.isNotEmpty()) {
-                appState.addSearchToHistory(trimmed)
+                if (trimmed.isNotEmpty()) {
+                    appState.addSearchToHistory(trimmed)
+                }
                 b1.rvSearchResults.visibility = View.VISIBLE
                 b1.tvResultCount.visibility = View.VISIBLE
                 b1.tvResultCount.text = getString(R.string.results_found, offlineResults.size)
                 b1.tvEmptyState.visibility = View.GONE
                 
                 val summaries = offlineResults.map {
-                    com.pokemon.explorer.data.PokemonSummary(it.id, it.name, it.typesCsv.split(","))
+                    val rawTypes = it.typesCsv.split(",").filter { t -> t.isNotBlank() }
+                    val types = if (rawTypes.isEmpty()) com.pokemon.explorer.data.getFallbackTypes(it.id) else rawTypes
+                    com.pokemon.explorer.data.PokemonSummary(it.id, it.name, types)
                 }
                 pokemonAdapter.submitList(summaries)
             } else {
                 // Fallback to API if we don't have it offline
-                try {
-                    val result = PokeApi.find(trimmed)
-                    if (result != null) {
-                        appState.addSearchToHistory(trimmed)
-                        b1.rvSearchResults.visibility = View.VISIBLE
-                        b1.tvResultCount.visibility = View.VISIBLE
-                        b1.tvResultCount.text = getString(R.string.results_found, 1)
-                        b1.tvEmptyState.visibility = View.GONE
-                        pokemonAdapter.submitList(listOf(result))
-                        return@launch
+                if (trimmed.isNotEmpty() && filterType == null) {
+                    try {
+                        val result = PokeApi.find(trimmed)
+                        if (result != null) {
+                            appState.addSearchToHistory(trimmed)
+                            b1.rvSearchResults.visibility = View.VISIBLE
+                            b1.tvResultCount.visibility = View.VISIBLE
+                            b1.tvResultCount.text = getString(R.string.results_found, 1)
+                            b1.tvEmptyState.visibility = View.GONE
+                            pokemonAdapter.submitList(listOf(result))
+                            return@launch
+                        }
+                    } catch (e: Exception) {
+                        // Ignore offline
                     }
-                } catch (e: Exception) {
-                    // Ignore offline
                 }
 
                 b1.rvSearchResults.visibility = View.GONE
                 b1.tvResultCount.visibility = View.GONE
                 b1.svSuggestions.visibility = View.VISIBLE
-                b1.tvEmptyState.visibility = View.VISIBLE
+                if (trimmed.isEmpty() && filterType == null) {
+                    b1.tvRecentTitle.visibility = if (appState.recentSearches.value.isNullOrEmpty()) View.GONE else View.VISIBLE
+                    b1.cgRecentSearches.visibility = if (appState.recentSearches.value.isNullOrEmpty()) View.GONE else View.VISIBLE
+                    b1.tvPopularTitle.visibility = View.VISIBLE
+                    b1.cgPopularSearches.visibility = View.VISIBLE
+                    b1.tvEmptyState.visibility = View.GONE
+                } else {
+                    b1.tvRecentTitle.visibility = View.GONE
+                    b1.cgRecentSearches.visibility = View.GONE
+                    b1.tvPopularTitle.visibility = View.GONE
+                    b1.cgPopularSearches.visibility = View.GONE
+                    b1.tvEmptyState.visibility = View.VISIBLE
+                }
             }
         }
     }

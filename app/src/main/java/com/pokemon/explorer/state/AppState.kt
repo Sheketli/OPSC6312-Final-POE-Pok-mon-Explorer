@@ -324,17 +324,62 @@ class AppState(application: Application) : AndroidViewModel(application) {
     private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
     private fun checkAndDownloadIndex(application: Application) {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val database = AppDatabase.getDatabase(application)
             val dao = database.pokemonIndexDao()
+
+            // Check if existing items in DB have missing types and populate them from fallback map
+            if (dao.getEmptyTypesCount() > 0) {
+                val emptyItems = dao.getEmptyTypes()
+                val updated = emptyItems.mapNotNull { item ->
+                    val fallbackTypes = com.pokemon.explorer.data.getFallbackTypes(item.id)
+                    if (fallbackTypes.isNotEmpty()) {
+                        item.copy(typesCsv = fallbackTypes.joinToString(","))
+                    } else null
+                }
+                if (updated.isNotEmpty()) {
+                    dao.insertAll(updated)
+                }
+            }
             
-            if (dao.getCount() < 1025) {
+            if (dao.getCount() < 20) {
+                // Instantly seed common Pokémon so search-as-you-type works immediately
+                val seedList = listOf(
+                    PokemonIndex(1, "bulbasaur", "grass,poison"),
+                    PokemonIndex(2, "ivysaur", "grass,poison"),
+                    PokemonIndex(3, "venusaur", "grass,poison"),
+                    PokemonIndex(4, "charmander", "fire"),
+                    PokemonIndex(5, "charmeleon", "fire"),
+                    PokemonIndex(6, "charizard", "fire,flying"),
+                    PokemonIndex(7, "squirtle", "water"),
+                    PokemonIndex(8, "wartortle", "water"),
+                    PokemonIndex(9, "blastoise", "water"),
+                    PokemonIndex(10, "caterpie", "bug"),
+                    PokemonIndex(25, "pikachu", "electric"),
+                    PokemonIndex(26, "raichu", "electric"),
+                    PokemonIndex(133, "eevee", "normal"),
+                    PokemonIndex(136, "flareon", "fire"),
+                    PokemonIndex(143, "snorlax", "normal"),
+                    PokemonIndex(150, "mewtwo", "psychic"),
+                    PokemonIndex(151, "mew", "psychic"),
+                    PokemonIndex(94, "gengar", "ghost,poison"),
+                    PokemonIndex(448, "lucario", "fighting,steel"),
+                    PokemonIndex(445, "garchomp", "dragon,ground"),
+                    PokemonIndex(149, "dragonite", "dragon,flying")
+                )
+                dao.insertAll(seedList)
+            }
+
+            if (dao.getCount() < 1025 || dao.getEmptyTypesCount() > 100) {
                 try {
                     val list = com.pokemon.explorer.data.PokeApi.downloadPokedexIndex()
-                    val indexList = list.map {
-                        PokemonIndex(it.id, it.name, it.types.joinToString(","))
+                    if (list.isNotEmpty()) {
+                        val indexList = list.map {
+                            val types = if (it.types.isEmpty()) com.pokemon.explorer.data.getFallbackTypes(it.id) else it.types
+                            PokemonIndex(it.id, it.name, types.joinToString(","))
+                        }
+                        dao.insertAll(indexList)
                     }
-                    dao.insertAll(indexList)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

@@ -52,14 +52,25 @@ class PokemonAdapter(
         binding.ivCaught.visibility = if (caught) View.VISIBLE else View.GONE
 
         binding.llTypes.removeAllViews()
-        val inflater = LayoutInflater.from(binding.root.context)
-        item.types.forEach { type ->
-            val color = typeColor(type)
-            val badgeView = inflater.inflate(R.layout.item_type_badge, binding.llTypes, false) as TextView
-            badgeView.text = type
-            badgeView.setBackgroundColor(color)
-            badgeView.setTextColor(com.pokemon.explorer.data.contrastOn(color))
-            binding.llTypes.addView(badgeView)
+        val rawTypes = item.types.filter { it.isNotBlank() }
+        val displayTypes = if (rawTypes.isEmpty()) com.pokemon.explorer.data.getFallbackTypes(item.id) else rawTypes
+
+        if (displayTypes.isNotEmpty()) {
+            binding.llTypes.visibility = View.VISIBLE
+            val inflater = LayoutInflater.from(binding.root.context)
+            displayTypes.forEach { type ->
+                val color = typeColor(type)
+                val badgeView = inflater.inflate(R.layout.item_type_badge, binding.llTypes, false) as TextView
+                badgeView.text = type.replaceFirstChar { it.uppercase() }
+                
+                val bg = binding.root.context.getDrawable(R.drawable.bg_chip_rounded)?.mutate()
+                bg?.setTint(color)
+                badgeView.background = bg
+                badgeView.setTextColor(com.pokemon.explorer.data.contrastOn(color))
+                binding.llTypes.addView(badgeView)
+            }
+        } else {
+            binding.llTypes.visibility = View.GONE
         }
 
         val rarity = item.rarity
