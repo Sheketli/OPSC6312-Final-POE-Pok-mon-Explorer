@@ -81,8 +81,10 @@ class CameraArActivity : AppCompatActivity() {
     private var initialYaw = Float.NaN
     private var initialPitch = Float.NaN
     
-    private var cameraOffsetX = 0f
-    private var cameraOffsetY = 0f
+    private var gyroOffsetX = 0f
+    private var gyroOffsetY = 0f
+    private var dragOffsetX = 0f
+    private var dragOffsetY = 0f
     private var lastTouchX = 0f
     private var lastTouchY = 0f
 
@@ -125,13 +127,13 @@ class CameraArActivity : AppCompatActivity() {
             val fovPixels = displayMetrics.widthPixels * 1.5f
             
             // Map physical rotation in remapped portrait space to virtual world offset
-            val targetOffsetX = (yawDelta / (PI / 3)).toFloat() * fovPixels
+            val targetOffsetX = -(yawDelta / (PI / 3)).toFloat() * fovPixels
             val targetOffsetY = -(pitchDelta / (PI / 3)).toFloat() * displayMetrics.heightPixels * 1.2f
             
             if (!targetOffsetX.isNaN() && !targetOffsetY.isNaN()) {
-                // Low-pass filter (smoothing) to prevent sudden jumps and runaway movements
-                cameraOffsetX += (targetOffsetX - cameraOffsetX) * 0.2f
-                cameraOffsetY += (targetOffsetY - cameraOffsetY) * 0.2f
+                // Low-pass filter (smoothing) on gyro offset
+                gyroOffsetX += (targetOffsetX - gyroOffsetX) * 0.2f
+                gyroOffsetY += (targetOffsetY - gyroOffsetY) * 0.2f
                 updatePokemonPositions()
             }
         }
@@ -313,9 +315,8 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun setupCameraTracking() {
-        // Without ARCore or Gyroscope, we can simulate the phone turning by dragging the screen
-        // to move the "world" container opposite to the camera movement
-        viewFinder.setOnTouchListener { _, event ->
+        // Attach touch listener directly to arOverlayContainer so touch events covering the viewport are caught
+        arOverlayContainer.setOnTouchListener { _, event ->
             when (event.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     lastTouchX = event.x
@@ -326,8 +327,8 @@ class CameraArActivity : AppCompatActivity() {
                     val dx = event.x - lastTouchX
                     val dy = event.y - lastTouchY
                     
-                    cameraOffsetX += dx
-                    cameraOffsetY += dy
+                    dragOffsetX += dx
+                    dragOffsetY += dy
                     
                     lastTouchX = event.x
                     lastTouchY = event.y
@@ -341,14 +342,12 @@ class CameraArActivity : AppCompatActivity() {
     }
     
     private fun updatePokemonPositions() {
-        if (cameraOffsetX.isNaN() || cameraOffsetY.isNaN()) {
-            cameraOffsetX = 0f
-            cameraOffsetY = 0f
-        }
+        val totalOffsetX = (if (gyroOffsetX.isNaN()) 0f else gyroOffsetX) + (if (dragOffsetX.isNaN()) 0f else dragOffsetX)
+        val totalOffsetY = (if (gyroOffsetY.isNaN()) 0f else gyroOffsetY) + (if (dragOffsetY.isNaN()) 0f else dragOffsetY)
         
         for (poke in arPokemons) {
-            val newX = poke.worldX + cameraOffsetX
-            val newY = poke.worldY + cameraOffsetY
+            val newX = poke.worldX + totalOffsetX
+            val newY = poke.worldY + totalOffsetY
             
             if (newX.isNaN() || newY.isNaN()) continue
             
@@ -376,8 +375,10 @@ class CameraArActivity : AppCompatActivity() {
         // Reset orientation calibration so rare spawn centers relative to current hold position
         initialYaw = Float.NaN
         initialPitch = Float.NaN
-        cameraOffsetX = 0f
-        cameraOffsetY = 0f
+        gyroOffsetX = 0f
+        gyroOffsetY = 0f
+        dragOffsetX = 0f
+        dragOffsetY = 0f
 
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels.toFloat()
@@ -411,8 +412,10 @@ class CameraArActivity : AppCompatActivity() {
         // Reset orientation calibration
         initialYaw = Float.NaN
         initialPitch = Float.NaN
-        cameraOffsetX = 0f
-        cameraOffsetY = 0f
+        gyroOffsetX = 0f
+        gyroOffsetY = 0f
+        dragOffsetX = 0f
+        dragOffsetY = 0f
 
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
@@ -430,18 +433,18 @@ class CameraArActivity : AppCompatActivity() {
             var valid = false
             var attempts = 0
             
-            while (!valid && attempts < 20) {
-                // Spread them in a comfortable arc around the user
-                worldX = Random.nextInt((-screenWidth * 1.2f).toInt(), (screenWidth * 1.2f).toInt()).toFloat()
-                worldY = Random.nextInt((screenHeight * 0.35f).toInt(), (screenHeight * 0.65f).toInt()).toFloat()
+            while (!valid && attempts < 100) {
+                // Spread them across a wide virtual cylinder around the user
+                worldX = Random.nextInt((-screenWidth * 3.5f).toInt(), (screenWidth * 3.5f).toInt()).toFloat()
+                worldY = Random.nextInt((screenHeight * 0.30f).toInt(), (screenHeight * 0.70f).toInt()).toFloat()
                 
                 valid = true
                 for (pos in existingPositions) {
                     val dx = pos.first - worldX
                     val dy = pos.second - worldY
                     val dist = Math.sqrt((dx * dx + dy * dy).toDouble())
-                    // Ensure they are far apart (at least 1.2x screen width distance)
-                    if (dist < screenWidth * 1.2f) {
+                    // Ensure they are spaced apart in 3D space
+                    if (dist < screenWidth * 1.5f) {
                         valid = false
                         break
                     }
@@ -466,7 +469,6 @@ class CameraArActivity : AppCompatActivity() {
             val arPoke = ArPokemon(imageView, worldX, worldY, pokeId)
             arPokemons.add(arPoke)
             
-            // Add a subtle breathing animation (scaling), but no translation since they are grounded
             animateBreathing(imageView)
         }
         
