@@ -1,46 +1,78 @@
 package com.pokemon.explorer.data.sync
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
-import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.data.CollectionPreferences
 import com.pokemon.explorer.data.ThemePreferences
+import com.pokemon.explorer.data.db.AppDatabase
 import kotlinx.coroutines.tasks.await
 
+/**
+ * WorkManager CoroutineWorker for synchronizing queued local user actions up to Firebase.
+ *
+ * Background sync guarantees data persistence when connection is restored after offline usage.
+ * Processes queued items in Room table [SyncActionDao] and pushes them to Firebase Realtime Database
+ * and Cloud Firestore.
+ *
+ * References:
+ * - WorkManager Overview: https://developer.android.com/topic/libraries/architecture/workmanager
+ * - CoroutineWorker API: https://developer.android.com/reference/androidx/work/CoroutineWorker
+ * - Firebase Realtime DB Data Structures: https://firebase.google.com/docs/database/android/read-and-write
+ */
 class SyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
+    companion object {
+        private const val TAG = "SyncWorker"
+    }
+
     override suspend fun doWork(): Result {
+        Log.i(TAG, "SyncWorker starting execution: checking background sync queue.")
         val auth = FirebaseAuth.getInstance()
-        val uid = auth.currentUser?.uid ?: return Result.success()
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            Log.w(TAG, "SyncWorker cancelled: No authenticated Firebase user currently logged in.")
+            return Result.success()
+        }
 
         val db = AppDatabase.getDatabase(applicationContext)
         val syncDao = db.syncActionDao()
         val actions = syncDao.getAllActions()
 
         if (actions.isEmpty()) {
+            Log.d(TAG, "SyncWorker: Sync queue is empty. Nothing to process.")
             return Result.success()
         }
+
+        Log.i(TAG, "SyncWorker found ${actions.size} pending sync action(s) to process for UID=$uid.")
 
         val rtdb = FirebaseDatabase.getInstance().reference
         val firestore = FirebaseFirestore.getInstance()
         val prefs = applicationContext.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
         val userKey = prefs.getString("logged_in_user_id", uid) ?: uid
-        if (userKey != uid) return Result.retry()
+        if (userKey != uid) {
+            Log.w(TAG, "SyncWorker user mismatch (userKey=$userKey, uid=$uid). Retrying later.")
+            return Result.retry()
+        }
 
         return try {
             val processedTypes = mutableSetOf<String>()
 
             for (action in actions) {
-                if (action.type in listOf("caught", "theme") && action.payload.isNotBlank() && action.payload != uid) continue
+                if (action.type in listOf("caught", "theme") && action.payload.isNotBlank() && action.payload != uid) {
+                    Log.d(TAG, "Skipping action ${action.type} with owner ${action.payload} for uid $uid")
+                    continue
+                }
                 if (!processedTypes.contains(action.type)) {
                     processedTypes.add(action.type)
+                    Log.d(TAG, "Processing sync action type: ${action.type}")
                     when (action.type) {
                         "favourites" -> {
                             val saved = prefs.getStringSet("favourites_$userKey", null) ?: prefs.getStringSet("favourites", emptySet()) ?: emptySet()
@@ -144,11 +176,13 @@ class SyncWorker(
                     }
                 }
                 syncDao.deleteAction(action)
+                Log.d(TAG, "Deleted processed action ${action.id} from queue.")
             }
 
+            Log.i(TAG, "SyncWorker completed sync batch successfully.")
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "SyncWorker batch failed with exception: ${e.message}", e)
             Result.retry()
         }
     }

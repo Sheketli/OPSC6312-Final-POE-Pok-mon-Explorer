@@ -1,6 +1,7 @@
 package com.pokemon.explorer.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -10,12 +11,39 @@ import com.pokemon.explorer.utils.NotificationHelper
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
+/**
+ * Background WorkManager worker responsible for generating rare Pokémon spawns and dispatching local notifications.
+ *
+ * References:
+ * - WorkManager Documentation: https://developer.android.com/topic/libraries/architecture/workmanager
+ * - Android Notifications Guide: https://developer.android.com/develop/ui/views/notifications/build-notification
+ */
 class RareSpawnWorker(
     private val context: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
+    companion object {
+        private const val TAG = "RareSpawnWorker"
+
+        /**
+         * Enqueues an immediate rare spawn work request upon application launch.
+         */
+        fun start(context: Context) {
+            Log.i(TAG, "start: Triggering immediate RareSpawnWorker via WorkManager.")
+            val workRequest = OneTimeWorkRequestBuilder<RareSpawnWorker>()
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "RareSpawnWork",
+                ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+        }
+    }
+
     override suspend fun doWork(): Result {
+        Log.i(TAG, "doWork: Executing RareSpawnWorker job.")
         // High rarity / interesting Pokemon IDs
         val rarePokemonList = listOf(
             Pair(150, "Mewtwo"),
@@ -33,11 +61,12 @@ class RareSpawnWorker(
         )
 
         val randomRare = rarePokemonList.random()
+        Log.i(TAG, "Spawn selected: #${randomRare.first} (${randomRare.second})")
 
         // Expiry time: 5 minutes from now
         val expiryTimeMillis = System.currentTimeMillis() + (5 * 60 * 1000)
 
-        // Dispatch the local notification
+        // Dispatch local notification
         NotificationHelper.sendRareSpawnNotification(
             context,
             randomRare.first,
@@ -45,8 +74,9 @@ class RareSpawnWorker(
             expiryTimeMillis
         )
 
-        // Schedule the next rare spawn notification (much faster now, every 1 to 2 minutes)
+        // Schedule next rare spawn notification (between 1 and 2 minutes)
         val delayMinutes = Random.nextLong(1, 3)
+        Log.d(TAG, "Scheduling next rare spawn notification in $delayMinutes minute(s).")
         val nextWork = OneTimeWorkRequestBuilder<RareSpawnWorker>()
             .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
             .build()
@@ -58,19 +88,5 @@ class RareSpawnWorker(
         )
 
         return Result.success()
-    }
-
-    companion object {
-        fun start(context: Context) {
-            // FIRE IMMEDIATELY upon app launch (No initial delay)
-            val workRequest = OneTimeWorkRequestBuilder<RareSpawnWorker>()
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                "RareSpawnWork",
-                ExistingWorkPolicy.REPLACE, // Force replace to ensure it fires right now
-                workRequest
-            )
-        }
     }
 }

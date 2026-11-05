@@ -1,10 +1,24 @@
 package com.pokemon.explorer.data
 
+import android.util.Log
+
 enum class ComparisonSide { FIRST, SECOND, TIE }
 
+/**
+ * Encapsulates battle prediction outcome between two Pokémon.
+ */
 data class BattlePrediction(val stronger: ComparisonSide, val winner: ComparisonSide)
 
+/**
+ * Predicts battle outcomes and type match-up effectiveness multipliers between two Pokémon details.
+ *
+ * References:
+ * - Pokémon Type Matchup Mechanics: https://bulbapedia.bulbagarden.net/wiki/Type/Type_chart
+ */
 fun predictBattle(a: PokemonDetail, b: PokemonDetail): BattlePrediction? {
+    val tag = "CompareMath"
+    runCatching { Log.d(tag, "predictBattle: Comparing ${a.name} (#${a.id}) vs ${b.name} (#${b.id})") }
+
     if (a.stats.isEmpty() || b.stats.isEmpty()) return null
     if (a.types.isEmpty() || b.types.isEmpty()) return null
     if (a.types.any { it == "unknown" } || b.types.any { it == "unknown" }) return null
@@ -51,5 +65,6 @@ fun predictBattle(a: PokemonDetail, b: PokemonDetail): BattlePrediction? {
         }
     }
 
+    runCatching { Log.i(tag, "Battle prediction calculation complete: stronger=$stronger, winner=$winner (dmgA=$dmgA, dmgB=$dmgB)") }
     return BattlePrediction(stronger, winner)
 }

@@ -1,51 +1,63 @@
 package com.pokemon.explorer.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.room.withTransaction
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.MutableData
-import com.google.firebase.database.Transaction
 import com.google.firebase.database.Query
-import com.pokemon.explorer.data.db.AppDatabase
+import com.google.firebase.database.ServerValue
+import com.google.firebase.database.Transaction
+import com.google.firebase.database.ValueEventListener
 import com.pokemon.explorer.R
+import com.pokemon.explorer.data.CollectionPreferences
+import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.data.db.FriendshipEntity
 import com.pokemon.explorer.data.db.MessageEntity
+import com.pokemon.explorer.data.db.SyncAction
 import com.pokemon.explorer.data.db.TradeRequestEntity
 import com.pokemon.explorer.data.db.User
-import com.pokemon.explorer.data.db.SyncAction
-import com.pokemon.explorer.data.CollectionPreferences
 import com.pokemon.explorer.data.sync.SyncWorker
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.ExistingWorkPolicy
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import com.google.firebase.database.ServerValue
 import com.pokemon.explorer.utils.NotificationHelper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 
+/**
+ * Repository for managing real-time social interactions: friend requests, messaging, and trading proposals.
+ *
+ * Utilizes Firebase Realtime Database for active synchronization and Room Database for local caching:
+ * - Realtime Database listeners: https://firebase.google.com/docs/database/android/read-and-write
+ * - Transactions for concurrent safe trade locks: https://firebase.google.com/docs/database/android/transactions
+ */
 class SocialRepository(private val context: Context) {
+
+    companion object {
+        private const val TAG = "SocialRepository"
+    }
 
     private val db = AppDatabase.getDatabase(context)
     private val firebaseDb = FirebaseDatabase.getInstance().reference
@@ -68,16 +80,17 @@ class SocialRepository(private val context: Context) {
     }
 
     fun close() {
+        Log.i(TAG, "close: Removing Firebase listeners and cancelling coroutine scope.")
         listeners.forEach { (reference, listener) -> reference.removeEventListener(listener) }
         scope.cancel()
     }
 
     suspend fun refresh() = withTimeout(15_000) {
+        Log.d(TAG, "refresh: Re-attaching Firebase queries and refreshing data.")
         require(FirebaseAuth.getInstance().currentUser != null) { "Sign in online to refresh." }
         coroutineScope {
             listeners.map { (query, listener) ->
                 async {
-                    // Reattach listeners that Firebase may have cancelled after a permissions error.
                     query.removeEventListener(listener)
                     query.addValueEventListener(listener)
                     query.get().await()
@@ -87,11 +100,11 @@ class SocialRepository(private val context: Context) {
     }
 
     init {
+        Log.i(TAG, "Initializing SocialRepository and subscribing to real-time events.")
         listenToFirebaseEvents()
     }
 
     private fun listenToFirebaseEvents() {
-        // Only public trainer names and IDs are shared across accounts.
         listen("trainer_profiles", object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 scope.launch {
@@ -109,11 +122,11 @@ class SocialRepository(private val context: Context) {
                     }
                 }
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                Log.w(TAG, "trainer_profiles listener cancelled: ${error.message}")
+            }
         })
 
-        // Sync Friendships
-        // Process snapshots in order, including deletions and rejected-write rollbacks.
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         val friendshipSnapshots = Channel<Pair<String, DataSnapshot>>(Channel.UNLIMITED)
         scope.launch {
@@ -141,9 +154,9 @@ class SocialRepository(private val context: Context) {
                                 val existing = previous.find { it.userOne == u1 && it.userTwo == u2 }
                                 db.friendshipDao().insertFriendship(FriendshipEntity(u1, u2, u1Id, u2Id, status))
 
-                                // Notify receiver when a new pending request arrives
                                 if (activeUser.isNotBlank() && u2.equals(activeUser, ignoreCase = true) && !u1.equals(activeUser, ignoreCase = true)) {
                                     if (status == "PENDING_SENDER_ONE" && (existing == null || existing.status != "PENDING_SENDER_ONE")) {
+                                        Log.i(TAG, "Received new friend request from $u1")
                                         NotificationHelper.sendSocialNotification(
                                             context,
                                             title = context.getString(R.string.friend_request_notification, u1),
@@ -155,9 +168,9 @@ class SocialRepository(private val context: Context) {
                                     }
                                 }
 
-                                // Notify sender when the request is accepted
                                 if (activeUser.isNotBlank() && u1.equals(activeUser, ignoreCase = true) && !u2.equals(activeUser, ignoreCase = true)) {
                                     if (status == "ACCEPTED" && existing != null && existing.status == "PENDING_SENDER_ONE") {
+                                        Log.i(TAG, "Friend request accepted by $u2")
                                         NotificationHelper.sendSocialNotification(
                                             context,
                                             title = context.getString(R.string.friend_accepted_notification, u2),
@@ -174,6 +187,7 @@ class SocialRepository(private val context: Context) {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "Friendship sync error: ${e.message}", e)
                     _friendshipSyncError.value = "Could not sync friend requests: ${e.localizedMessage}"
                 }
             }
@@ -215,6 +229,7 @@ class SocialRepository(private val context: Context) {
                     messages.forEach { db.messageDao().insertMessage(it) }
                 }
                 messages.filter { it.receiverUserId == uid && it.id !in previous }.forEach {
+                    Log.i(TAG, "Received new chat message from ${it.senderUsername}")
                     NotificationHelper.sendSocialNotification(
                         context, "Message from ${it.senderUsername}", it.messageText,
                         it.senderUserId.hashCode(), "chat", it.senderUsername
@@ -272,6 +287,7 @@ class SocialRepository(private val context: Context) {
                         val incoming = trade.receiverUserId == uid
                         if ((incoming && trade.tradeStatus == "PENDING") ||
                             (!incoming && trade.tradeStatus == "COUNTERED") || trade.tradeStatus == "ACCEPTED") {
+                            Log.i(TAG, "Trade proposal status updated to ${trade.tradeStatus}")
                             val otherName = if (incoming) trade.senderUsername else trade.receiverUsername
                             val title = when (trade.tradeStatus) {
                                 "PENDING" -> context.getString(R.string.trade_request_notification, trade.senderUsername)
@@ -317,10 +333,12 @@ class SocialRepository(private val context: Context) {
                     }
                     errors.value = null
                 } catch (e: TimeoutCancellationException) {
+                    Log.w(TAG, "Timeout syncing path $path for UID $uid")
                     errors.value = "Sync timed out. Check your connection and reopen this screen to retry."
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    Log.e(TAG, "Sync exception for path $path: ${e.message}", e)
                     errors.value = "Could not sync ${path.replace('_', ' ')}: ${e.localizedMessage}"
                 }
             }
@@ -338,8 +356,8 @@ class SocialRepository(private val context: Context) {
         }
     }
 
-    // ---------------- Search & Users ----------------
     suspend fun searchUsers(query: String): List<User> = withContext(Dispatchers.IO) {
+        Log.d(TAG, "searchUsers: query=$query")
         if (query.isBlank()) return@withContext emptyList()
         withTimeout(15_000) {
             val snapshot = firebaseDb.child("trainer_profiles").get().await()
@@ -358,9 +376,9 @@ class SocialRepository(private val context: Context) {
         }
     }
 
-    // ---------------- Friendships ----------------
     suspend fun sendFriendRequest(senderUsername: String, targetUsername: String): Boolean =
         withContext(Dispatchers.IO) {
+            Log.i(TAG, "sendFriendRequest: from $senderUsername to $targetUsername")
             withTimeout(15_000) {
                 val uid = FirebaseAuth.getInstance().currentUser?.uid
                     ?: error("Sign in online before sending a friend request.")
@@ -380,7 +398,6 @@ class SocialRepository(private val context: Context) {
                 val targetId = target.key ?: error("The trainer account has no ID.")
                 require(uid != targetId) { "You cannot send a friend request to yourself." }
 
-                // Consult the server so old local-only requests cannot block a retry.
                 val existing = friendshipRecords(senderName, targetName)
                 if (existing.any {
                     val status = it.child("status").getValue(String::class.java)
@@ -400,7 +417,7 @@ class SocialRepository(private val context: Context) {
             if (data.value != null) false
             else { data.value = entity; true }
         }
-    // Match both legacy username keys and new UID keys.
+
     private suspend fun friendshipRecords(userA: String, userB: String): List<DataSnapshot> {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
             ?: error("Sign in online to manage friend requests.")
@@ -416,6 +433,7 @@ class SocialRepository(private val context: Context) {
 
     suspend fun acceptFriendRequest(currentUsername: String, requesterUsername: String) =
         withContext(Dispatchers.IO) {
+            Log.i(TAG, "acceptFriendRequest: $currentUsername accepting request from $requesterUsername")
             withTimeout(15_000) {
                 val records = friendshipRecords(currentUsername, requesterUsername)
                 require(records.any {
@@ -429,6 +447,7 @@ class SocialRepository(private val context: Context) {
 
     private suspend fun deleteFriendship(userA: String, userB: String) =
         withContext(Dispatchers.IO) {
+            Log.d(TAG, "deleteFriendship: between $userA and $userB")
             withTimeout(15_000) {
                 val updates = friendshipRecords(userA, userB).associate { it.key!! to null }
                 firebaseDb.child("friendships").updateChildren(updates).await()
@@ -487,6 +506,7 @@ class SocialRepository(private val context: Context) {
 
     suspend fun sendMessage(senderUsername: String, receiverUsername: String, messageText: String): Boolean =
         withContext(Dispatchers.IO) {
+            Log.i(TAG, "sendMessage: from $senderUsername to $receiverUsername")
             withTimeout(15_000) {
                 require(messageText.isNotBlank() && messageText.length <= 2000) {
                     "Enter a message of up to 2,000 characters."
@@ -520,6 +540,7 @@ class SocialRepository(private val context: Context) {
         offeredPokemonId: String,
         optionalDescription: String?
     ): Boolean = withContext(Dispatchers.IO) {
+        Log.i(TAG, "sendTradeRequest: from $senderUsername to $receiverUsername offering $offeredPokemonId")
         withTimeout(15_000) {
             val contact = friendContact(senderUsername, receiverUsername)
             val pokemonId = offeredPokemonId.toIntOrNull()
@@ -551,6 +572,7 @@ class SocialRepository(private val context: Context) {
     }
 
     suspend fun counterTradeRequest(tradeId: Long, returnedPokemonId: Int) = withContext(Dispatchers.IO) {
+        Log.i(TAG, "counterTradeRequest: tradeId=$tradeId, returnedPokemonId=$returnedPokemonId")
         withTimeout(15_000) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: error("Sign in online first.")
             val prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
@@ -580,6 +602,7 @@ class SocialRepository(private val context: Context) {
     }
 
     suspend fun acceptTradeRequest(tradeId: Long) = withContext(Dispatchers.IO) {
+        Log.i(TAG, "acceptTradeRequest: tradeId=$tradeId")
         withTimeout(15_000) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: error("Sign in online first.")
             val reference = firebaseDb.child("trade_requests").child(tradeId.toString())
@@ -605,6 +628,7 @@ class SocialRepository(private val context: Context) {
     }
 
     suspend fun declineTradeRequest(tradeId: Long) = withContext(Dispatchers.IO) {
+        Log.i(TAG, "declineTradeRequest: tradeId=$tradeId")
         withTimeout(15_000) {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: error("Sign in online first.")
             val reference = firebaseDb.child("trade_requests").child(tradeId.toString())
@@ -624,6 +648,7 @@ class SocialRepository(private val context: Context) {
     }
 
     private suspend fun reservePokemon(uid: String, pokemonId: String, tradeId: Long) {
+        Log.d(TAG, "reservePokemon: uid=$uid, pokemonId=$pokemonId, tradeId=$tradeId")
         val lock = firebaseDb.child("trade_locks").child(uid).child(pokemonId)
         val previousId = lock.get().await().getValue(Long::class.java)
         if (previousId != null && previousId != tradeId) {
@@ -642,6 +667,7 @@ class SocialRepository(private val context: Context) {
     }
 
     private suspend fun releasePokemon(uid: String, pokemonId: String, tradeId: Long) {
+        Log.d(TAG, "releasePokemon: uid=$uid, pokemonId=$pokemonId, tradeId=$tradeId")
         val lock = firebaseDb.child("trade_locks").child(uid).child(pokemonId)
         if (lock.get().await().getValue(Long::class.java) != tradeId) return
         transact(lock, tradeId) { data ->
@@ -659,8 +685,6 @@ class SocialRepository(private val context: Context) {
     ): Boolean = suspendCancellableCoroutine { continuation ->
         reference.runTransaction(object : Transaction.Handler {
             override fun doTransaction(data: MutableData): Transaction.Result {
-                // Transactions may start with an empty cache even after get(). The server
-                // compares versions and retries this handler against its latest record.
                 if (data.value == null && initialValue != null) data.value = initialValue
                 return if (update(data)) Transaction.success(data) else Transaction.abort()
             }

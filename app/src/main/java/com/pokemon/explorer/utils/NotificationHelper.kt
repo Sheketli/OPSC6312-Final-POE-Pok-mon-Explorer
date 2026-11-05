@@ -8,18 +8,32 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.pokemon.explorer.MainActivity
 import com.pokemon.explorer.R
 
+/**
+ * Singleton helper managing system notification channel creation, permission verification,
+ * and posting local notifications for rare spawns and social interactions.
+ *
+ * References:
+ * - Create and Manage Notification Channels: https://developer.android.com/develop/ui/views/notifications/channels
+ * - Notification Permissions in Android 13+: https://developer.android.com/develop/ui/views/notifications/notification-permission
+ */
 object NotificationHelper {
+
+    private const val TAG = "NotificationHelper"
     private const val CHANNEL_ID = "rare_spawns_channel"
     private const val SOCIAL_CHANNEL_ID = "explorer_social_alerts"
 
+    /**
+     * Checks whether runtime notification permission is granted or enabled on device.
+     */
     fun canSendNotification(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -27,14 +41,20 @@ object NotificationHelper {
         } else {
             NotificationManagerCompat.from(context).areNotificationsEnabled()
         }
+        Log.d(TAG, "canSendNotification check result: $granted")
+        return granted
     }
 
+    /**
+     * Sends a rare spawn alert notification to the system bar.
+     */
     fun sendRareSpawnNotification(
         context: Context,
         pokemonId: Int,
         pokemonName: String,
         expiresAt: Long
     ) {
+        Log.i(TAG, "sendRareSpawnNotification: Dispatching alert for $pokemonName (#$pokemonId)")
         createNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -62,10 +82,18 @@ object NotificationHelper {
         if (canSendNotification(context)) {
             try {
                 NotificationManagerCompat.from(context).notify(pokemonId, builder.build())
-            } catch (_: SecurityException) {}
+                Log.d(TAG, "Notification successfully posted to NotificationManager.")
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException while notifying rare spawn: ${e.message}", e)
+            }
+        } else {
+            Log.w(TAG, "Cannot send rare spawn notification: POST_NOTIFICATIONS permission disabled.")
         }
     }
 
+    /**
+     * Sends a social alert notification (friend request, chat message, trade proposal).
+     */
     fun sendSocialNotification(
         context: Context,
         title: String,
@@ -74,6 +102,7 @@ object NotificationHelper {
         targetScreen: String? = null,
         extraData: String? = null
     ) {
+        Log.i(TAG, "sendSocialNotification: title=$title, id=$notificationId, targetScreen=$targetScreen")
         createSocialNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -101,7 +130,10 @@ object NotificationHelper {
         if (canSendNotification(context)) {
             try {
                 NotificationManagerCompat.from(context).notify(notificationId, builder.build())
-            } catch (_: SecurityException) {}
+                Log.d(TAG, "Social notification successfully posted.")
+            } catch (e: SecurityException) {
+                Log.e(TAG, "SecurityException while notifying social alert: ${e.message}", e)
+            }
         }
     }
 

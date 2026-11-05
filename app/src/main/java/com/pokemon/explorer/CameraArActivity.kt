@@ -13,6 +13,7 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
@@ -42,7 +43,22 @@ import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.random.Random
 
+/**
+ * Augmented Reality (AR) Camera activity enabling interactive Pokémon detection and capture.
+ *
+ * Combines CameraX live stream preview with hardware sensor fusion (Rotation Vector Sensor)
+ * and touch-drag fallbacks to simulate 3D AR space positioning.
+ *
+ * References:
+ * - CameraX Architecture: https://developer.android.com/training/camerax
+ * - Android Motion and Position Sensors: https://developer.android.com/guide/topics/sensors/sensors_position
+ * - Rotation Vector Sensor Math: https://developer.android.com/reference/android/hardware/SensorManager#getRotationMatrixFromVector(float[],%20float[])
+ */
 class CameraArActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "CameraArActivity"
+    }
 
     private lateinit var viewFinder: PreviewView
     private lateinit var arOverlayContainer: FrameLayout
@@ -113,6 +129,7 @@ class CameraArActivity : AppCompatActivity() {
             if (initialYaw.isNaN()) {
                 initialYaw = currentYaw
                 initialPitch = currentPitch
+                Log.d(TAG, "Calibrated initial sensor orientation: yaw=$initialYaw, pitch=$initialPitch")
             }
             
             var yawDelta = currentYaw - initialYaw
@@ -151,12 +168,14 @@ class CameraArActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i(TAG, "onCreate: Initializing CameraArActivity UI layout and hardware sensors.")
         setContentView(R.layout.activity_camera_ar)
 
         // Read preferences
         val prefs = getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
         isGyroscopeEnabled = prefs.getBoolean("gyroscope_enabled", true)
         isScreenDraggingEnabled = prefs.getBoolean("screen_dragging_enabled", true)
+        Log.d(TAG, "AR Settings: isGyroscopeEnabled=$isGyroscopeEnabled, isScreenDraggingEnabled=$isScreenDraggingEnabled")
 
         // Bind layout views
         viewFinder = findViewById(R.id.viewFinder)
@@ -179,24 +198,24 @@ class CameraArActivity : AppCompatActivity() {
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        // Setup pseudo-AR tracking via touch drag on the viewfinder (Fallback for no-gyro devices)
         if (isScreenDraggingEnabled) {
             setupCameraTracking()
         }
 
-        // Verify and process device streaming camera hardware permissions
         if (hasCameraPermission()) {
             bindCameraXLifecycleEngine()
         } else {
+            Log.i(TAG, "Camera permission not present. Requesting Manifest.permission.CAMERA")
             ActivityCompat.requestPermissions(
                 this, arrayOf(Manifest.permission.CAMERA), cameraPermissionRequestCode
             )
         }
 
         if (rareSpawnId != -1 && rareSpawnExpiresAt != -1L) {
+            Log.i(TAG, "Handling rare Pokémon spawn encounter for ID=$rareSpawnId")
             handleRareSpawn()
         } else {
-            // Spawn multiple Pokémon after a short delay to simulate AR
+            Log.d(TAG, "Spawning standard ambient AR Pokémon.")
             Handler(Looper.getMainLooper()).postDelayed({
                 spawnArPokemons()
                 startCrosshairTracking()
@@ -207,9 +226,9 @@ class CameraArActivity : AppCompatActivity() {
 
         btnCatchAction.setOnClickListener {
             val caughtName = tvArPokemonName.text
+            Log.i(TAG, "Catch action button clicked for targeted Pokémon ID=$targetedPokemonId ($caughtName)")
             Toast.makeText(this, "$caughtName captured successfully!", Toast.LENGTH_SHORT).show()
             
-            // Add the caught pokemon to the collection
             targetedPokemonId?.let { id ->
                 appState.addCaught(id)
 
@@ -217,16 +236,16 @@ class CameraArActivity : AppCompatActivity() {
                 if (caughtArPoke != null) {
                     arOverlayContainer.removeView(caughtArPoke.view)
                     arPokemons.remove(caughtArPoke)
+                    Log.d(TAG, "Removed captured Pokémon #$id from AR container view.")
                 }
             }
             
-            // Reset HUD
             targetedPokemonId = null
             cardPokemonMetrics.visibility = View.GONE
             
-            // Exit if all caught
             if (arPokemons.isEmpty()) {
-                finishAfterTransition() 
+                Log.i(TAG, "All AR Pokémon in scene captured. Exiting activity.")
+                finishAfterTransition()
             }
         }
     }
@@ -234,7 +253,8 @@ class CameraArActivity : AppCompatActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        
+        Log.d(TAG, "onNewIntent: Received updated intent for CameraArActivity.")
+
         rareSpawnId = intent.getIntExtra("rare_pokemon_id", -1)
         rareSpawnExpiresAt = intent.getLongExtra("expires_at", -1L)
         
@@ -246,6 +266,7 @@ class CameraArActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "onResume: Registering sensor listener.")
         if (isGyroscopeEnabled) {
             rotationSensor?.let {
                 sensorManager.registerListener(sensorEventListener, it, SensorManager.SENSOR_DELAY_GAME)
@@ -255,12 +276,14 @@ class CameraArActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        Log.d(TAG, "onPause: Unregistering sensor listener.")
         sensorManager.unregisterListener(sensorEventListener)
     }
 
     private fun handleRareSpawn() {
         val currentTime = System.currentTimeMillis()
         if (currentTime > rareSpawnExpiresAt) {
+            Log.w(TAG, "Rare spawn timer expired (currentTime=$currentTime, expiresAt=$rareSpawnExpiresAt)")
             Toast.makeText(this, "Oh no! The rare Pokémon fled...", Toast.LENGTH_LONG).show()
             
             rareSpawnId = -1
@@ -275,6 +298,7 @@ class CameraArActivity : AppCompatActivity() {
 
         tvRareSpawnTimer.visibility = View.VISIBLE
         val timeLeft = rareSpawnExpiresAt - currentTime
+        Log.i(TAG, "Starting rare spawn countdown timer: ${timeLeft / 1000}s remaining.")
 
         spawnTimer = object : android.os.CountDownTimer(timeLeft, 1000) {
             override fun onTick(millisUntilFinished: Long) {
@@ -284,10 +308,10 @@ class CameraArActivity : AppCompatActivity() {
             }
 
             override fun onFinish() {
+                Log.w(TAG, "Rare spawn countdown finished! Pokémon fled.")
                 Toast.makeText(this@CameraArActivity, "The rare Pokémon ran away!", Toast.LENGTH_LONG).show()
                 tvRareSpawnTimer.visibility = View.GONE
                 
-                // Remove the rare pokemon from the screen
                 val fledPoke = arPokemons.find { it.id == rareSpawnId }
                 if (fledPoke != null) {
                     arOverlayContainer.removeView(fledPoke.view)
@@ -299,11 +323,9 @@ class CameraArActivity : AppCompatActivity() {
                     cardPokemonMetrics.visibility = View.GONE
                 }
                 
-                // Reset rare spawn tracking
                 rareSpawnId = -1
                 rareSpawnExpiresAt = -1L
                 
-                // Spawn normal pokémons to continue the hunt
                 spawnArPokemons()
             }
         }.start()
@@ -315,7 +337,6 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun setupCameraTracking() {
-        // Attach touch listener directly to arOverlayContainer so touch events covering the viewport are caught
         arOverlayContainer.setOnTouchListener { _, event ->
             when (event.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
@@ -351,12 +372,9 @@ class CameraArActivity : AppCompatActivity() {
             
             if (newX.isNaN() || newY.isNaN()) continue
             
-            // Apply the camera offset to keep them "anchored" in the physical world
             poke.view.x = newX
             poke.view.y = newY
             
-            // Scale based on Y position to create faux depth (lower on screen = closer/bigger)
-            // assuming bottom of screen is closer to user
             val displayMetrics = resources.displayMetrics
             val normalizedY = newY / displayMetrics.heightPixels
             val scale = if (normalizedY.isNaN()) 1.0f else 0.5f + (normalizedY * 1.5f).coerceIn(0f, 1.5f)
@@ -369,10 +387,10 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun spawnArRarePokemon(pokemonId: Int) {
+        Log.i(TAG, "spawnArRarePokemon: Spawning single rare target #$pokemonId")
         arPokemons.clear()
         arOverlayContainer.removeAllViews()
 
-        // Reset orientation calibration so rare spawn centers relative to current hold position
         initialYaw = Float.NaN
         initialPitch = Float.NaN
         gyroOffsetX = 0f
@@ -384,18 +402,16 @@ class CameraArActivity : AppCompatActivity() {
         val screenWidth = displayMetrics.widthPixels.toFloat()
         val screenHeight = displayMetrics.heightPixels.toFloat()
 
-        // Place near reticle center with a subtle, easily manageable offset
         val randomOffsetX = kotlin.random.Random.nextInt(-60, 60).toFloat()
         val randomOffsetY = kotlin.random.Random.nextInt(-40, 40).toFloat()
         val worldX = (screenWidth / 2f) + randomOffsetX
         val worldY = (screenHeight * 0.45f) + randomOffsetY
 
         val imageView = ImageView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(400, 400) // Larger size for AR presence
-            // Load sprite directly via network URL
+            layoutParams = FrameLayout.LayoutParams(400, 400)
             load("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/$pokemonId.png") {
                 crossfade(true)
-                placeholder(R.drawable.ic_pokeball) // Show generic fallback while fetching high-res image
+                placeholder(R.drawable.ic_pokeball)
                 error(R.drawable.ic_pokeball)
             }
         }
@@ -409,7 +425,7 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun spawnArPokemons() {
-        // Reset orientation calibration
+        Log.i(TAG, "spawnArPokemons: Generating ambient Gen 1 Pokémon targets.")
         initialYaw = Float.NaN
         initialPitch = Float.NaN
         gyroOffsetX = 0f
@@ -421,12 +437,11 @@ class CameraArActivity : AppCompatActivity() {
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
 
-        // Spawn 4 random Pokémon
         val count = 4
         val existingPositions = mutableListOf<Pair<Float, Float>>()
         
         for (i in 0 until count) {
-            val pokeId = Random.nextInt(1, 152) // Gen 1 Pokedex range
+            val pokeId = Random.nextInt(1, 152)
             
             var worldX = 0f
             var worldY = 0f
@@ -434,7 +449,6 @@ class CameraArActivity : AppCompatActivity() {
             var attempts = 0
             
             while (!valid && attempts < 100) {
-                // Spread them across a wide virtual cylinder around the user
                 worldX = Random.nextInt((-screenWidth * 3.5f).toInt(), (screenWidth * 3.5f).toInt()).toFloat()
                 worldY = Random.nextInt((screenHeight * 0.30f).toInt(), (screenHeight * 0.70f).toInt()).toFloat()
                 
@@ -443,7 +457,6 @@ class CameraArActivity : AppCompatActivity() {
                     val dx = pos.first - worldX
                     val dy = pos.second - worldY
                     val dist = Math.sqrt((dx * dx + dy * dy).toDouble())
-                    // Ensure they are spaced apart in 3D space
                     if (dist < screenWidth * 1.5f) {
                         valid = false
                         break
@@ -459,7 +472,6 @@ class CameraArActivity : AppCompatActivity() {
                 y = worldY
                 tag = pokeId
                 
-                // Load sprite using Coil (Official Artwork API)
                 load("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/$pokeId.png") {
                     crossfade(true)
                 }
@@ -472,14 +484,12 @@ class CameraArActivity : AppCompatActivity() {
             animateBreathing(imageView)
         }
         
-        // Apply initial camera offset and depth scaling
         updatePokemonPositions()
     }
 
     private fun animateBreathing(imageView: ImageView) {
         val duration = Random.nextLong(1500, 2500)
         
-        // Just subtly scale up and down to look alive, relying on updatePokemonPositions for base scale
         imageView.animate()
             .scaleXBy(0.05f)
             .scaleYBy(-0.02f)
@@ -495,6 +505,7 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun startCrosshairTracking() {
+        Log.d(TAG, "startCrosshairTracking: Starting 100ms interval reticle hit detection.")
         trackingHandler.post(trackingRunnable)
     }
 
@@ -511,9 +522,7 @@ class CameraArActivity : AppCompatActivity() {
         var foundTarget: ArPokemon? = null
         var closestDistance = Float.MAX_VALUE
 
-        // Check if the center of the crosshair is close to any AR Pokémon center
         for (poke in arPokemons) {
-            // Get actual current position taking camera offset and scaling into account
             val centerX = poke.view.x + (poke.view.width / 2f * poke.view.scaleX)
             val centerY = poke.view.y + (poke.view.height / 2f * poke.view.scaleY)
             
@@ -521,7 +530,6 @@ class CameraArActivity : AppCompatActivity() {
             val dy = reticleCenterY - centerY
             val distance = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
             
-            // Use a generous hit radius multiplied by the scale of the pokemon
             val effectiveRadius = hitRadius + (200f * poke.view.scaleX)
             
             if (distance < effectiveRadius && distance < closestDistance) {
@@ -533,12 +541,13 @@ class CameraArActivity : AppCompatActivity() {
         if (foundTarget != null) {
             val pokeId = foundTarget.id
             if (targetedPokemonId != pokeId) {
+                Log.i(TAG, "Crosshair locked onto Pokémon #$pokeId!")
                 targetedPokemonId = pokeId
                 fetchPokemonDetails(pokeId)
             }
         } else {
-            // Target lost, hide the stats card
             if (targetedPokemonId != null && !isFetching) {
+                Log.d(TAG, "Crosshair target lost.")
                 targetedPokemonId = null
                 cardPokemonMetrics.animate().alpha(0f).setDuration(300)
                     .withEndAction { cardPokemonMetrics.visibility = View.GONE }.start()
@@ -547,6 +556,7 @@ class CameraArActivity : AppCompatActivity() {
     }
 
     private fun fetchPokemonDetails(id: Int) {
+        Log.d(TAG, "fetchPokemonDetails: Querying PokéAPI details for #$id")
         isFetching = true
         
         tvArPokemonName.text = "Scanning..."
@@ -564,7 +574,6 @@ class CameraArActivity : AppCompatActivity() {
 
         scope.launch {
             try {
-                // Fetch dynamic real-time data from PokeAPI
                 val response = withContext(Dispatchers.IO) {
                     URL("https://pokeapi.co/api/v2/pokemon/$id").readText()
                 }
@@ -588,7 +597,6 @@ class CameraArActivity : AppCompatActivity() {
                 for (i in 0 until flavorTextEntries.length()) {
                     val entry = flavorTextEntries.getJSONObject(i)
                     if (entry.getJSONObject("language").getString("name") == "en") {
-                        // Clean up control characters from PokeAPI text
                         description = entry.getString("flavor_text").replace("\n", " ").replace("\u000c", " ")
                         break
                     }
@@ -597,11 +605,12 @@ class CameraArActivity : AppCompatActivity() {
                 val formattedId = String.format("#%03d", id)
 
                 withContext(Dispatchers.Main) {
+                    Log.i(TAG, "Successfully scanned Pokémon details for #$id ($name)")
                     renderArEncounterSpecs(formattedId, name, primaryType, hexColor, description)
                     isFetching = false
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Failed to fetch scan details for Pokémon #$id: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     tvArPokemonName.text = "Unknown Entity"
                     tvArPokemonDescription.text = "Failed to parse ecological parameters."
@@ -627,42 +636,35 @@ class CameraArActivity : AppCompatActivity() {
         }
     }
 
-    // Implementing the CameraX Lifecycle provider logic
     private fun bindCameraXLifecycleEngine() {
+        Log.i(TAG, "bindCameraXLifecycleEngine: Binding ProcessCameraProvider lifecycle.")
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
         cameraProviderFuture.addListener({
-            // Initialize secure instance synchronization token
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-            // Initialize structural configuration settings for the Viewfinder Preview object wrapper
             val preview = Preview.Builder()
                 .build()
                 .also {
-                    // Feed streaming tracking buffers straight into the XML surface layer
                     it.setSurfaceProvider(viewFinder.surfaceProvider)
                 }
 
-            // Bind configuration targeting paths to standard rear camera hardware module arrays
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             try {
-                // Clear existing session registrations before executing re-attachment paths
                 cameraProvider.unbindAll()
-
-                // Register camera lifecycle bounds to this Activity host configuration layer
                 cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview
                 )
-
+                Log.i(TAG, "CameraX back camera lifecycle successfully bound to activity.")
             } catch (exc: Exception) {
+                Log.e(TAG, "Failed to bind CameraX provider: ${exc.message}", exc)
                 Toast.makeText(this, "Failed to connect to hardware camera thread instance pipeline.", Toast.LENGTH_SHORT).show()
             }
 
-        }, ContextCompat.getMainExecutor(this)) // Forces execution context safely onto the UI main thread
+        }, ContextCompat.getMainExecutor(this))
     }
 
-    // Process and populate encounter layout panel components dynamically
     private fun renderArEncounterSpecs(
         id: String, name: String, type: String, colorHex: String, description: String
     ) {
@@ -671,7 +673,6 @@ class CameraArActivity : AppCompatActivity() {
         tvArPokemonDescription.text = description
         tvTypePrimary.text = type
 
-        // Apply badge color styles programmatically via an updated shape layer drawable
         val dynamicColor = try {
             Color.parseColor(colorHex)
         } catch (e: Exception) {
@@ -684,7 +685,6 @@ class CameraArActivity : AppCompatActivity() {
         }
         tvTypePrimary.background = badgeBackgroundShape
 
-        // Update Rarity Badge
         val rarityBadge = findViewById<TextView>(R.id.tvPokemonRarityBadge)
         val numericId = id.removePrefix("#").toIntOrNull() ?: 25
         val summary = com.pokemon.explorer.data.PokemonSummary(numericId, name, listOf(type))
@@ -704,8 +704,10 @@ class CameraArActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == cameraPermissionRequestCode) {
             if (hasCameraPermission()) {
+                Log.i(TAG, "Camera permission granted by user.")
                 bindCameraXLifecycleEngine()
             } else {
+                Log.w(TAG, "Camera permission denied by user.")
                 Toast.makeText(this, "Camera stream processing permissions are required for AR encounters.", Toast.LENGTH_LONG).show()
                 finish()
             }
@@ -714,7 +716,8 @@ class CameraArActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.i(TAG, "onDestroy: Cleaning up camera executor and tracking handlers.")
         trackingHandler.removeCallbacks(trackingRunnable)
-        cameraExecutor.shutdown() // Tear down standalone asset executor allocations cleanly to eliminate tracking leak states
+        cameraExecutor.shutdown()
     }
 }

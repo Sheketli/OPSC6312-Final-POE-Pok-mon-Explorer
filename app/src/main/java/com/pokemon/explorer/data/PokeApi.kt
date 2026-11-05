@@ -1,6 +1,7 @@
 package com.pokemon.explorer.data
 
 import android.content.Context
+import android.util.Log
 import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.data.db.CachedPokemon
 import com.pokemon.explorer.data.db.CachedPokemonDao
@@ -14,16 +15,21 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Minimal PokéAPI client.
+ * Minimal dependency-free PokéAPI HTTP client and JSON parser.
  *
- * Deliberately dependency-free: it uses [HttpURLConnection] (platform) and [org.json]
- * (bundled with Android) rather than Retrofit/Moshi, so the app has no networking
- * library to configure. Responses are memoised for the life of the process, which
- * mirrors the module-level cache in the web app and keeps repeated navigation
- * (Detail → back → Detail) instant.
+ * Utilizes native [HttpURLConnection] and [JSONObject] to query PokéAPI REST and GraphQL endpoints.
+ * Implements a dual-layer caching strategy:
+ * - Layer 1: In-memory thread-safe [ConcurrentHashMap]
+ * - Layer 2: Persistent Room disk cache via [CachedPokemonDao]
+ *
+ * References:
+ * - PokéAPI v2 Documentation: https://pokeapi.co/docs/v2
+ * - PokeAPI GraphQL Beta Endpoint: https://beta.pokeapi.co/graphql/v1beta
+ * - Android HttpURLConnection Documentation: https://developer.android.com/reference/java/net/HttpURLConnection
  */
 object PokeApi {
 
+    private const val TAG = "PokeApi"
     private const val BASE = "https://pokeapi.co/api/v2"
     private const val ARTWORK_BASE =
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork"
@@ -37,20 +43,23 @@ object PokeApi {
     private val cache = ConcurrentHashMap<String, JSONObject>()
     private var cachedPokemonDao: CachedPokemonDao? = null
 
+    /**
+     * Initializes local Room disk caching mechanism.
+     */
     fun init(context: Context) {
+        Log.d(TAG, "Initializing PokeApi with persistent Room CachedPokemonDao.")
         cachedPokemonDao = AppDatabase.getDatabase(context).cachedPokemonDao()
     }
 
     /**
      * Official artwork URL for a Pokémon. [shiny] switches to the shiny artwork.
-     * Prefer this over the URLs inside the API response so Detail and Compare
-     * always render the same asset.
      */
     fun artworkUrl(id: Int, shiny: Boolean = false): String =
         if (shiny) "$ARTWORK_BASE/shiny/$id.png" else "$ARTWORK_BASE/$id.png"
 
-    /** Drops every memoised response. Wired to "Clear Cache" in Settings. */
+    /** Drops every memoised response in memory and disk cache. */
     fun clearCache() {
+        Log.i(TAG, "Clearing in-memory cache and local Room cached HTTP responses.")
         cache.clear()
         Thread {
             cachedPokemonDao?.clearAll()
@@ -58,13 +67,10 @@ object PokeApi {
     }
 
     /**
-     * First [limit] Pokémon from the National Pokédex, starting at [offset].
-     *
-     * The list endpoint only returns names and URLs, so each entry is fetched
-     * individually to obtain its types. That is the same N+1 pattern the web app
-     * used, and it stays cheap because [get] caches every response.
+     * Fetches first [limit] Pokémon summaries from National Pokédex starting at [offset].
      */
     suspend fun list(limit: Int = 20, offset: Int = 0): List<PokemonSummary> {
+        Log.d(TAG, "list: limit=$limit, offset=$offset")
         val payload = get("$BASE/pokemon?limit=$limit&offset=$offset")
         val results = payload.getJSONArray("results")
         return (0 until results.length()).map { index ->
@@ -74,20 +80,26 @@ object PokeApi {
     }
 
     /**
-     * Name and types for a single Pokémon — no species lookup, so it stays cheap
-     * when the Collection screen needs a card per stored id.
+     * Fetches name and types for a single Pokémon summary by ID.
      */
-    suspend fun summary(id: Int): PokemonSummary = toSummary(get("$BASE/pokemon/$id"))
+    suspend fun summary(id: Int): PokemonSummary {
+        Log.d(TAG, "summary: id=$id")
+        return toSummary(get("$BASE/pokemon/$id"))
+    }
 
     /** Full detail record for one Pokémon, including English flavour text when available. */
     suspend fun detail(id: Int): PokemonDetail {
+        Log.d(TAG, "detail: id=$id")
         val pokemon = get("$BASE/pokemon/$id")
-        // Flavour text is a nice-to-have: a missing species record must not fail the screen.
         val species = runCatching { get("$BASE/pokemon-species/$id") }.getOrNull()
         return buildDetail(pokemon, species)
     }
 
+    /**
+     * Downloads full National Pokédex index (1025 entries) using GraphQL endpoint for performance.
+     */
     suspend fun downloadPokedexIndex(): List<PokemonSummary> = withContext(Dispatchers.IO) {
+        Log.i(TAG, "downloadPokedexIndex: Requesting full Pokédex via GraphQL.")
         try {
             val url = "https://beta.pokeapi.co/graphql/v1beta"
             val query = """{"query":"query { pokemon_v2_pokemon(where: {id: {_lte: 1025}}) { id name pokemon_v2_pokemontypes { pokemon_v2_type { name } } } }"}"""
@@ -104,11 +116,13 @@ object PokeApi {
             }
 
             val status = connection.responseCode
+            Log.d(TAG, "GraphQL response status code = $status")
             if (status in 200..299) {
                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(body)
                 val data = json.optJSONObject("data")?.optJSONArray("pokemon_v2_pokemon")
                 if (data != null && data.length() > 0) {
+                    Log.i(TAG, "GraphQL successfully returned ${data.length()} Pokémon entries.")
                     return@withContext (0 until data.length()).map { i ->
                         val pkmn = data.getJSONObject(i)
                         val typesArr = pkmn.optJSONArray("pokemon_v2_pokemontypes") ?: JSONArray()
@@ -124,10 +138,10 @@ object PokeApi {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "GraphQL Pokédex index download failed: ${e.message}")
         }
 
-        // Fallback to REST API if GraphQL endpoint fails or times out
+        Log.i(TAG, "Falling back to REST endpoint for Pokédex index download.")
         return@withContext downloadPokedexIndexFromRest()
     }
 
@@ -145,6 +159,7 @@ object PokeApi {
                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(body)
                 val results = json.getJSONArray("results")
+                Log.d(TAG, "REST index endpoint returned ${results.length()} Pokémon URLs.")
                 (0 until results.length()).map { index ->
                     val obj = results.getJSONObject(index)
                     val name = obj.getString("name")
@@ -156,17 +171,17 @@ object PokeApi {
                 emptyList()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "REST fallback failed: ${e.message}", e)
             emptyList()
         }
     }
 
     /**
-     * Resolves a name or Pokédex number to a summary, or returns `null` when
-     * PokéAPI has no such Pokémon.
+     * Resolves name or Pokédex ID query to a summary.
      */
     suspend fun find(query: String): PokemonSummary? {
         val slug = query.trim().lowercase().replace(' ', '-')
+        Log.d(TAG, "find: querying slug=$slug")
         if (slug.isEmpty()) return null
         return runCatching { toSummary(get("$BASE/pokemon/$slug")) }.getOrNull()
     }
@@ -224,7 +239,6 @@ object PokeApi {
                 moves.getJSONObject(index).getJSONObject("move").getString("name")
             },
             sprites = Sprites(
-                // Fall back to our own URL scheme when the payload omits artwork.
                 default = artwork?.optString("front_default")?.takeIf { it.isNotEmpty() }
                     ?: artworkUrl(id),
                 shiny = artwork?.optString("front_shiny")?.takeIf { it.isNotEmpty() }
@@ -239,7 +253,6 @@ object PokeApi {
         for (index in 0 until entries.length()) {
             val entry = entries.getJSONObject(index)
             if (entry.optJSONObject("language")?.optString("name") == "en") {
-                // The API embeds form feeds and hard line breaks; collapse them to spaces.
                 return entry.optString("flavor_text")
                     .replace('\u000C', ' ')
                     .replace('\n', ' ')
@@ -254,15 +267,20 @@ object PokeApi {
     // ------------------------------------------------------------- transport
 
     private suspend fun get(url: String): JSONObject = withContext(Dispatchers.IO) {
-        cache[url]?.let { return@withContext it }
+        cache[url]?.let {
+            Log.d(TAG, "L1 Cache Hit (Memory): $url")
+            return@withContext it
+        }
 
         val dbCache = cachedPokemonDao?.get(url)
         if (dbCache != null) {
+            Log.d(TAG, "L2 Cache Hit (Room Disk DB): $url")
             val json = JSONObject(dbCache.jsonPayload)
             cache[url] = json
             return@withContext json
         }
 
+        Log.d(TAG, "Cache Miss: Executing network HTTP GET -> $url")
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
@@ -278,8 +296,10 @@ object PokeApi {
             JSONObject(body).also { 
                 cache[url] = it 
                 cachedPokemonDao?.insert(CachedPokemon(url, body))
+                Log.d(TAG, "Successfully fetched and saved response for $url")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "HTTP GET failed for $url: ${e.message}")
             throw IOException("Network error: ${e.message}")
         } finally {
             connection.disconnect()

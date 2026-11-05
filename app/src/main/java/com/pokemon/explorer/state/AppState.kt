@@ -3,19 +3,22 @@ package com.pokemon.explorer.state
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.ExistingWorkPolicy
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.pokemon.explorer.data.CollectionPreferences
+import com.pokemon.explorer.data.ThemePreferences
 import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.data.db.PokemonIndex
 import com.pokemon.explorer.data.db.PokemonNote
@@ -24,8 +27,7 @@ import com.pokemon.explorer.data.db.User
 import com.pokemon.explorer.data.repository.AuthRepository
 import com.pokemon.explorer.data.repository.AuthResult
 import com.pokemon.explorer.data.sync.SyncWorker
-import com.pokemon.explorer.data.CollectionPreferences
-import com.pokemon.explorer.data.ThemePreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -69,16 +71,28 @@ enum class ThemeSetting(val label: String) {
 }
 
 /**
- * Holds navigation stacks, collection and display preferences scoped per unique user account.
+ * Global AndroidViewModel holding user authentication session, navigation stacks,
+ * collection preferences, and offline data sync dispatch.
+ *
+ * References:
+ * - AndroidViewModel Documentation: https://developer.android.com/reference/androidx/lifecycle/AndroidViewModel
+ * - LiveData Guide: https://developer.android.com/topic/libraries/architecture/livedata
+ * - Offline Sync with WorkManager: https://developer.android.com/topic/libraries/architecture/workmanager
  */
 class AppState(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val TAG = "AppState"
+    }
 
     private val prefs = application.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     private val collectionPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
         val key = activeUserKey
         if (key != null && changed == "caught_$key") {
+            Log.d(TAG, "SharedPreferences changed caught key for user $key")
             _caught.postValue(CollectionPreferences.caught(prefs, key))
         } else if (key != null && changed == "theme_$key") {
+            Log.d(TAG, "SharedPreferences changed theme key for user $key")
             _theme.postValue(ThemePreferences.read(prefs, key))
         }
     }
@@ -151,11 +165,13 @@ class AppState(application: Application) : AndroidViewModel(application) {
         get() = _currentUser.value?.let { user -> user.userId.ifBlank { user.username } }
 
     init {
+        Log.i(TAG, "Initializing AppState ViewModel and setting up session listeners.")
         prefs.registerOnSharedPreferenceChangeListener(collectionPreferenceListener)
         com.pokemon.explorer.data.PokeApi.init(application)
         
         val savedUsername = prefs.getString("logged_in_user", null)
         val savedUserId = prefs.getString("logged_in_user_id", null)
+        Log.d(TAG, "Session restoration check: savedUsername=$savedUsername, savedUserId=$savedUserId")
         if (savedUsername != null) {
             viewModelScope.launch {
                 val database = AppDatabase.getDatabase(application)
@@ -167,10 +183,12 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     val uid = auth.currentUser?.uid ?: savedUserId ?: savedUsername
                     user = User(username = savedUsername, userId = uid, email = auth.currentUser?.email ?: "", passwordHash = "")
                 }
+                Log.i(TAG, "Restored active user session for ${user.username} (${user.userId})")
                 setCurrentUser(user)
                 _isAuthChecked.value = true
             }
         } else {
+            Log.d(TAG, "No active user session saved in SharedPreferences.")
             _isAuthChecked.value = true
         }
 
@@ -178,6 +196,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     private fun setCurrentUser(user: User?) {
+        Log.i(TAG, "setCurrentUser: ${user?.username}")
         _currentUser.value = user
         if (user != null) {
             val uid = user.userId.ifBlank { auth.currentUser?.uid ?: user.username }
@@ -193,10 +212,14 @@ class AppState(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Loads user-scoped local preferences and triggers online Firebase sync.
+     */
     private fun loadUserScopedData(user: User) {
         val userKey = user.userId.ifBlank { user.username }
+        Log.d(TAG, "loadUserScopedData for userKey=$userKey")
 
-        // Load caught
+        // Load caught from local SharedPreferences
         val savedCaught = prefs.getStringSet("caught_$userKey", null)
         if (savedCaught != null) {
             _caught.value = savedCaught.mapNotNull { it.toIntOrNull() }.toSet()
@@ -220,9 +243,10 @@ class AppState(application: Application) : AndroidViewModel(application) {
         // Load recent searches
         _recentSearches.value = prefs.getString("recent_searches_csv_$userKey", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-        // Sync from Firebase if online
+        // Sync from Firebase if connected online
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Attempting remote data sync from Realtime Database for $userKey")
                 var remoteCaughtList = emptyList<Int>()
                 var remoteRemovedCaught = emptySet<Int>()
                 var remoteAppliedTrades = emptySet<String>()
@@ -258,7 +282,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
                         prefs.edit().putBoolean("notifications_enabled", it).apply()
                     }
 
-                    // Restore Pokémon Notes
+                    // Restore Pokémon Notes into Room database
                     val notesSnap = snapshot.child("notes")
                     if (notesSnap.exists()) {
                         val roomDb = AppDatabase.getDatabase(getApplication())
@@ -283,9 +307,10 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
-                // Fallback to Firestore if RTDB lists are empty
+                // Fallback to Cloud Firestore if RTDB arrays were empty
                 if (remoteCaughtList.isEmpty() || remoteFavsList.isEmpty()) {
                     try {
+                        Log.d(TAG, "Fallback: Attempting Firestore query for missing collections.")
                         val firestoreDoc = FirebaseFirestore.getInstance().collection("users").document(userKey).get().await()
                         if (firestoreDoc.exists()) {
                             if (remoteCaughtList.isEmpty()) {
@@ -295,7 +320,9 @@ class AppState(application: Application) : AndroidViewModel(application) {
                                 remoteFavsList = (firestoreDoc.get("favourites") as? List<*>)?.mapNotNull { (it as? Long)?.toInt() ?: (it as? String)?.toIntOrNull() } ?: emptyList()
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (fsError: Exception) {
+                        Log.w(TAG, "Firestore sync fallback failed: ${fsError.message}")
+                    }
                 }
 
                 if (remoteCaughtList.isNotEmpty()) {
@@ -315,21 +342,25 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     _recentSearches.value = remoteSearchesList
                     prefs.edit().putString("recent_searches_csv_$userKey", remoteSearchesList.joinToString(",")).apply()
                 }
-            } catch (_: Exception) {
-                // Ignore offline sync error
+                Log.i(TAG, "Remote data sync completed for user $userKey")
+            } catch (e: Exception) {
+                Log.w(TAG, "Offline or remote sync failed: ${e.message}")
             }
         }
     }
 
-    private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
-
+    /**
+     * Checks if the local Pokédex Room index has complete data; populates seed or downloads GraphQL Pokédex index if necessary.
+     */
     private fun checkAndDownloadIndex(application: Application) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
             val database = AppDatabase.getDatabase(application)
             val dao = database.pokemonIndexDao()
+            val currentCount = dao.getCount()
+            Log.d(TAG, "checkAndDownloadIndex: Current Pokédex index count = $currentCount")
 
-            // Check if existing items in DB have missing types and populate them from fallback map
             if (dao.getEmptyTypesCount() > 0) {
+                Log.d(TAG, "Fixing empty type entries in local Room index using static fallback map.")
                 val emptyItems = dao.getEmptyTypes()
                 val updated = emptyItems.mapNotNull { item ->
                     val fallbackTypes = com.pokemon.explorer.data.getFallbackTypes(item.id)
@@ -342,8 +373,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 }
             }
             
-            if (dao.getCount() < 20) {
-                // Instantly seed common Pokémon so search-as-you-type works immediately
+            if (currentCount < 20) {
+                Log.i(TAG, "Seeding common starter Pokémon for instant search results.")
                 val seedList = listOf(
                     PokemonIndex(1, "bulbasaur", "grass,poison"),
                     PokemonIndex(2, "ivysaur", "grass,poison"),
@@ -372,6 +403,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
             if (dao.getCount() < 1025 || dao.getEmptyTypesCount() > 100) {
                 try {
+                    Log.i(TAG, "Downloading full Pokédex index from PokeAPI GraphQL endpoint.")
                     val list = com.pokemon.explorer.data.PokeApi.downloadPokedexIndex()
                     if (list.isNotEmpty()) {
                         val indexList = list.map {
@@ -379,15 +411,17 @@ class AppState(application: Application) : AndroidViewModel(application) {
                             PokemonIndex(it.id, it.name, types.joinToString(","))
                         }
                         dao.insertAll(indexList)
+                        Log.i(TAG, "Successfully inserted ${indexList.size} items into local Pokédex index.")
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e(TAG, "Failed to download Pokédex index: ${e.message}", e)
                 }
             }
         }
     }
 
     fun selectTab(tab: TabId) {
+        Log.d(TAG, "selectTab: $tab")
         _activeTab.value = tab
         _currentFrame.value = stacks.getValue(tab).last()
     }
@@ -398,6 +432,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
         idA: Int? = null,
         filterType: String? = null,
     ) {
+        Log.d(TAG, "navigate: screen=$screen, id=$id, idA=$idA, filterType=$filterType")
         val frame = NavFrame(screen = screen, id = id, idA = idA, filterType = filterType)
         val tab = _activeTab.value ?: TabId.Explore
         stacks.getValue(tab).add(frame)
@@ -407,6 +442,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
     fun goBack(): Boolean {
         val tab = _activeTab.value ?: TabId.Explore
         val stack = stacks.getValue(tab)
+        Log.d(TAG, "goBack: current tab=$tab, stack size=${stack.size}")
         if (stack.size <= 1) return false
         stack.removeAt(stack.size - 1)
         _currentFrame.value = stack.last()
@@ -417,6 +453,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val key = activeUserKey ?: return
         val current = _favourites.value ?: emptySet()
         val updated = current.toggle(id)
+        Log.d(TAG, "toggleFavourite: id=$id, updated set size=${updated.size}")
         _favourites.value = updated
         prefs.edit().putStringSet("favourites_$key", updated.map { it.toString() }.toSet()).apply()
         syncToFirebase("favourites", updated.toList())
@@ -425,11 +462,13 @@ class AppState(application: Application) : AndroidViewModel(application) {
     fun toggleCaught(id: Int) {
         val key = activeUserKey ?: return
         if (id in CollectionPreferences.reserved(prefs, key)) {
+            Log.w(TAG, "Attempted to toggle caught state on reserved trade Pokémon (id=$id)")
             Toast.makeText(getApplication(), "Complete or cancel the trade reserving this Pokémon first.", Toast.LENGTH_LONG).show()
             return
         }
         val current = CollectionPreferences.caught(prefs, key)
         val updated = current.toggle(id)
+        Log.d(TAG, "toggleCaught: id=$id, updated set size=${updated.size}")
         _caught.value = updated
         CollectionPreferences.update(prefs, key, updated)
         syncToFirebase("caught", updated.toList())
@@ -440,6 +479,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val current = CollectionPreferences.caught(prefs, key)
         if (!current.contains(id)) {
             val updated = current + id
+            Log.d(TAG, "addCaught: id=$id")
             _caught.value = updated
             CollectionPreferences.update(prefs, key, updated)
             syncToFirebase("caught", updated.toList())
@@ -452,6 +492,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
             Toast.makeText(getApplication(), "Complete or cancel pending trades before resetting your collection.", Toast.LENGTH_LONG).show()
             return
         }
+        Log.i(TAG, "Resetting collection and favourites for user $key")
         _favourites.value = emptySet()
         _caught.value = emptySet()
         prefs.edit().remove("favourites_$key").apply()
@@ -461,35 +502,41 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectTheme(value: ThemeSetting) {
+        Log.d(TAG, "selectTheme: value=$value")
         _theme.value = value
         getApplication<com.pokemon.explorer.PokemonApplication>().themeController.select(activeUserKey, value)
     }
 
     fun updateSearchHistoryEnabled(enabled: Boolean) {
+        Log.d(TAG, "updateSearchHistoryEnabled: $enabled")
         _searchHistoryEnabled.value = enabled
         prefs.edit().putBoolean("search_history_enabled", enabled).apply()
         syncToFirebase("search_history_enabled", enabled)
     }
     
     fun updateGyroscopeEnabled(enabled: Boolean) {
+        Log.d(TAG, "updateGyroscopeEnabled: $enabled")
         _gyroscopeEnabled.value = enabled
         prefs.edit().putBoolean("gyroscope_enabled", enabled).apply()
         syncToFirebase("gyroscope_enabled", enabled)
     }
 
     fun updateScreenDraggingEnabled(enabled: Boolean) {
+        Log.d(TAG, "updateScreenDraggingEnabled: $enabled")
         _screenDraggingEnabled.value = enabled
         prefs.edit().putBoolean("screen_dragging_enabled", enabled).apply()
         syncToFirebase("screen_dragging_enabled", enabled)
     }
 
     fun updateResumeLastViewed(enabled: Boolean) {
+        Log.d(TAG, "updateResumeLastViewed: $enabled")
         _resumeLastViewed.value = enabled
         prefs.edit().putBoolean("resume_last_viewed", enabled).apply()
         syncToFirebase("resume_last_viewed", enabled)
     }
 
     fun updateNotificationsEnabled(enabled: Boolean) {
+        Log.d(TAG, "updateNotificationsEnabled: $enabled")
         _notificationsEnabled.value = enabled
         prefs.edit().putBoolean("notifications_enabled", enabled).apply()
         syncToFirebase("notifications_enabled", enabled)
@@ -501,6 +548,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val normalized = query.trim().lowercase()
         val currentList = _recentSearches.value ?: emptyList()
         val newList = (listOf(normalized) + currentList.filter { it != normalized }).take(10)
+        Log.d(TAG, "addSearchToHistory: query=$normalized, new history size=${newList.size}")
         _recentSearches.value = newList
         prefs.edit().putString("recent_searches_csv_$key", newList.joinToString(",")).apply()
         syncToFirebase("recent_searches", newList)
@@ -508,19 +556,23 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun clearSearchHistory() {
         val key = activeUserKey ?: return
+        Log.d(TAG, "clearSearchHistory for $key")
         _recentSearches.value = emptyList()
         prefs.edit().remove("recent_searches_csv_$key").apply()
         syncToFirebase("recent_searches", emptyList<String>())
     }
 
     fun login(email: String, password: String) {
+        Log.i(TAG, "login attempt for email=$email")
         viewModelScope.launch {
             _authError.value = null
             when (val result = authRepository.login(email, password)) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Login successful for user ${result.user.username}")
                     setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
+                    Log.w(TAG, "Login failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -528,13 +580,16 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun register(username: String, email: String, password: String) {
+        Log.i(TAG, "register attempt for username=$username, email=$email")
         viewModelScope.launch {
             _authError.value = null
             when (val result = authRepository.register(username, email, password)) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Registration successful for user ${result.user.username}")
                     setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
+                    Log.w(TAG, "Registration failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -546,13 +601,16 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun googleSignIn(idToken: String) {
+        Log.i(TAG, "googleSignIn attempt")
         viewModelScope.launch {
             _authError.value = null
             when (val result = authRepository.googleSignIn(idToken)) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Google Sign-In successful for user ${result.user.username}")
                     setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
+                    Log.w(TAG, "Google Sign-In failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -560,14 +618,17 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
     
     fun updatePassword(newPassword: String) {
+        Log.i(TAG, "updatePassword requested")
         viewModelScope.launch {
             _authError.value = null
             _authSuccess.value = null
             when (val result = authRepository.updatePassword(newPassword)) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Password update successful")
                     _authSuccess.value = "Password updated successfully"
                 }
                 is AuthResult.Error -> {
+                    Log.w(TAG, "Password update failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -575,16 +636,19 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
     
     fun updateUsername(newUsername: String) {
+        Log.i(TAG, "updateUsername requested to $newUsername")
         viewModelScope.launch {
             _authError.value = null
             _authSuccess.value = null
             when (val result = authRepository.updateUsername(newUsername)) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Username updated to ${result.user.username}")
                     val updatedUser = result.user
                     setCurrentUser(updatedUser)
                     _authSuccess.value = "Username updated successfully"
                 }
                 is AuthResult.Error -> {
+                    Log.w(TAG, "Username update failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -593,11 +657,13 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun deleteAccount() {
         val user = _currentUser.value ?: return
+        Log.w(TAG, "deleteAccount requested for ${user.username}")
         viewModelScope.launch {
             _authError.value = null
             _authSuccess.value = null
             when (val result = authRepository.deleteAccount()) {
                 is AuthResult.Success -> {
+                    Log.i(TAG, "Account deleted successfully from Firebase and local DB.")
                     val database = AppDatabase.getDatabase(getApplication())
                     database.pokemonNoteDao().deleteAllNotesForUser(user.username, user.userId)
 
@@ -618,6 +684,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     logout()
                 }
                 is AuthResult.Error -> {
+                    Log.e(TAG, "Account deletion failed: ${result.message}")
                     _authError.value = result.message
                 }
             }
@@ -625,6 +692,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
+        Log.i(TAG, "logout user session")
         prefs.edit().remove("logged_in_user").remove("logged_in_user_id").apply()
         setCurrentUser(null)
         _activeTab.value = TabId.Explore
@@ -640,7 +708,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val key = user.userId.ifBlank { user.username }
         val currentCaught = CollectionPreferences.caught(prefs, key)
         val newCaught = currentCaught + id
-        
+        Log.i(TAG, "catchPokemon: Caught Pokémon #$id for user $key")
+
         _caught.value = newCaught
         CollectionPreferences.update(prefs, key, newCaught)
         
@@ -658,6 +727,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun savePokemonNote(pokemonId: Int, nickname: String, note: String) {
         val user = _currentUser.value ?: return
+        Log.d(TAG, "savePokemonNote: pokemonId=$pokemonId, nickname=$nickname")
         viewModelScope.launch {
             val database = AppDatabase.getDatabase(getApplication())
             if (nickname.isBlank() && note.isBlank()) {
@@ -682,8 +752,12 @@ class AppState(application: Application) : AndroidViewModel(application) {
         return database.pokemonNoteDao().getNote(user.username, pokemonId)
     }
 
+    /**
+     * Inserts an offline SyncAction into Room database and dispatches a background SyncWorker via WorkManager.
+     */
     private fun syncToFirebase(key: String, value: Any) {
         val owner = activeUserKey.orEmpty()
+        Log.d(TAG, "syncToFirebase: Queueing sync action key=$key, owner=$owner")
         viewModelScope.launch {
             val database = AppDatabase.getDatabase(getApplication())
             database.syncActionDao().insertAction(SyncAction(type = key, payload = if (key == "caught") owner else ""))
@@ -699,10 +773,12 @@ class AppState(application: Application) : AndroidViewModel(application) {
             WorkManager.getInstance(getApplication()).enqueueUniqueWork(
                 "user-data-sync", ExistingWorkPolicy.APPEND_OR_REPLACE, syncRequest
             )
+            Log.d(TAG, "Enqueued SyncWorker background job with WorkManager.")
         }
     }
 
     override fun onCleared() {
+        Log.d(TAG, "onCleared: Unregistering SharedPreferences listener.")
         prefs.unregisterOnSharedPreferenceChangeListener(collectionPreferenceListener)
         super.onCleared()
     }
