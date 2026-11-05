@@ -60,6 +60,10 @@ class HomeFragment : Fragment() {
         }
 
         binding.btnSettings.setOnClickListener { appState.navigate(Screen.SETTINGS) }
+        binding.btnAddFriend.setOnClickListener {
+            val intent = android.content.Intent(requireContext(), com.pokemon.explorer.ui.FriendsActivity::class.java)
+            startActivity(intent)
+        }
         binding.btnSearchBar.setOnClickListener { appState.navigate(Screen.SEARCH) }
         binding.btnSeeAll.setOnClickListener { appState.navigate(Screen.SEARCH) }
 

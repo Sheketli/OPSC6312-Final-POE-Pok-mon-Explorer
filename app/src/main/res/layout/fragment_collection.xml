@@ -22,13 +22,26 @@
             android:src="@drawable/ic_launcher_foreground" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
+            android:layout_weight="1"
             android:text="My Collection"
             android:textColor="@color/text_high"
             android:textSize="22sp"
             android:textStyle="bold" />
+
+        <!-- Trade Hub Router Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOpenTradeHub"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:backgroundTint="#8A2BE2"
+            android:text="TRADE PORTAL"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:cornerRadius="10dp" />
     </LinearLayout>
 
     <!-- Progress Dashboard Card -->

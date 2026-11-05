@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#ECE5DD"> <!-- WhatsApp background theme -->
+
+    <!-- Chat Header Bar -->
+    <LinearLayout
+        android:id="@+id/llChatHeader"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="#075E54"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnBackFromChat"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="#FFFFFF" />
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Avatar"
+            android:src="@drawable/ic_user"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/tvChatHeaderName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Trainer"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Messages Recycler -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMessageList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:padding="12dp"
+        app:layout_constraintBottom_toTopOf="@id/llMessageBar"
+        app:layout_constraintTop_toBottomOf="@id/llChatHeader" />
+
+    <!-- Message Input Bar -->
+    <LinearLayout
+        android:id="@+id/llMessageBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#F0F0F0"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <EditText
+            android:id="@+id/etMessageInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/search_bar_background"
+            android:hint="Type a message..."
+            android:inputType="textMultiLine"
+            android:maxLines="4"
+            android:minHeight="44dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:textSize="15sp" />
+
+        <ImageButton
+            android:id="@+id/btnSendMessage"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_circle_button"
+            android:backgroundTint="#128C7E"
+            android:contentDescription="Send Message"
+            android:padding="10dp"
+            android:src="@drawable/ic_send"
+            app:tint="#FFFFFF" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

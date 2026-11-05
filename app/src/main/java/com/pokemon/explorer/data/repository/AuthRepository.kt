@@ -28,6 +28,7 @@ class AuthRepository(private val userDao: UserDao) {
             if (firebaseUser != null) {
                 // Save user info to Realtime Database and Firestore
                 val userMap = mapOf(
+                    "userId" to firebaseUser.uid,
                     "username" to username,
                     "email" to email
                 )
@@ -35,7 +36,8 @@ class AuthRepository(private val userDao: UserDao) {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(firebaseUser.uid).set(userMap).await()
                 
                 val user = User(
-                    username = username, 
+                    username = username,
+                    userId = firebaseUser.uid,
                     email = email,
                     passwordHash = PasswordHasher.hashPassword(password)
                 )
@@ -64,7 +66,8 @@ class AuthRepository(private val userDao: UserDao) {
                 val username = snapshot.child("username").getValue(String::class.java) ?: "User"
                 
                 val user = User(
-                    username = username, 
+                    username = username,
+                    userId = firebaseUser.uid,
                     email = email,
                     passwordHash = PasswordHasher.hashPassword(password)
                 )
@@ -103,13 +106,14 @@ class AuthRepository(private val userDao: UserDao) {
 
                 // Save or update user info to Realtime Database and Firestore
                 val userMap = mapOf(
+                    "userId" to firebaseUser.uid,
                     "username" to username,
                     "email" to email
                 )
                 db.child("users").child(firebaseUser.uid).setValue(userMap).await()
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(firebaseUser.uid).set(userMap).await()
 
-                val user = User(username = username, email = email, passwordHash = "")
+                val user = User(username = username, userId = firebaseUser.uid, email = email, passwordHash = "")
                 try {
                     userDao.insertUser(user)
                 } catch (e: Exception) {

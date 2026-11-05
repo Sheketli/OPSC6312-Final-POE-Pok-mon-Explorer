@@ -53,6 +53,11 @@ class CollectionFragment : Fragment() {
             }
         }
 
+        binding.btnOpenTradeHub.setOnClickListener {
+            val intent = android.content.Intent(requireContext(), com.pokemon.explorer.ui.TradeSubmissionActivity::class.java)
+            startActivity(intent)
+        }
+
         appState.favourites.observe(viewLifecycleOwner) { updateProgress() }
         appState.caught.observe(viewLifecycleOwner) { updateProgress() }
 

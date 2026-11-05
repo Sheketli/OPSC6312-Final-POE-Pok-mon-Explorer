@@ -23,6 +23,7 @@ import com.pokemon.explorer.data.repository.AuthRepository
 import com.pokemon.explorer.data.repository.AuthResult
 import com.pokemon.explorer.data.sync.SyncWorker
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /** The four bottom-navigation destinations. */
 enum class TabId(val label: String, val initialScreen: String) {
@@ -64,7 +65,7 @@ enum class ThemeSetting(val label: String) {
 }
 
 /**
- * Holds navigation stacks, collection and display preferences.
+ * Holds navigation stacks, collection and display preferences scoped per unique user account.
  */
 class AppState(application: Application) : AndroidViewModel(application) {
 
@@ -134,69 +135,185 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     var isSplashFinished: Boolean = false
 
-    private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-        if (key == "caught") {
-            val savedCaught = sharedPreferences.getStringSet("caught", null)
-            _caught.value = if (savedCaught == null) {
-                setOf(25, 1, 6, 7, 4, 5, 152, 249, 250, 384, 143, 59, 130, 131, 9, 3, 65, 68, 76, 94, 149)
-            } else {
-                savedCaught.mapNotNull { it.toIntOrNull() }.toSet()
-            }
-        } else if (key == "favourites") {
-            val savedFavourites = sharedPreferences.getStringSet("favourites", null)
-            _favourites.value = if (savedFavourites == null) {
-                setOf(25, 1, 6)
-            } else {
-                savedFavourites.mapNotNull { it.toIntOrNull() }.toSet()
-            }
-        }
-    }
+    val activeUserKey: String?
+        get() = _currentUser.value?.let { user -> user.userId.ifBlank { user.username } }
 
     init {
-        prefs.registerOnSharedPreferenceChangeListener(prefListener)
         com.pokemon.explorer.data.PokeApi.init(application)
         
         val savedUsername = prefs.getString("logged_in_user", null)
+        val savedUserId = prefs.getString("logged_in_user_id", null)
         if (savedUsername != null) {
             viewModelScope.launch {
                 val database = AppDatabase.getDatabase(application)
-                val user = database.userDao().getUserByUsername(savedUsername)
-                _currentUser.value = user
+                var user = database.userDao().getUserByUsername(savedUsername)
+                if (user == null && savedUserId != null) {
+                    user = database.userDao().getUserByUserId(savedUserId)
+                }
+                if (user == null) {
+                    val uid = auth.currentUser?.uid ?: savedUserId ?: savedUsername
+                    user = User(username = savedUsername, userId = uid, email = auth.currentUser?.email ?: "", passwordHash = "")
+                }
+                setCurrentUser(user)
                 _isAuthChecked.value = true
             }
         } else {
             _isAuthChecked.value = true
         }
 
-        // Load settings
-        val savedThemeName = prefs.getString("theme", ThemeSetting.System.name)
+        checkAndDownloadIndex(application)
+    }
+
+    private fun setCurrentUser(user: User?) {
+        _currentUser.value = user
+        if (user != null) {
+            val uid = user.userId.ifBlank { auth.currentUser?.uid ?: user.username }
+            prefs.edit()
+                .putString("logged_in_user", user.username)
+                .putString("logged_in_user_id", uid)
+                .apply()
+            loadUserScopedData(user)
+        } else {
+            _favourites.value = emptySet()
+            _caught.value = emptySet()
+            _recentSearches.value = emptyList()
+        }
+    }
+
+    private fun loadUserScopedData(user: User) {
+        val userKey = user.userId.ifBlank { user.username }
+
+        // Load caught
+        val savedCaught = prefs.getStringSet("caught_$userKey", null)
+        if (savedCaught != null) {
+            _caught.value = savedCaught.mapNotNull { it.toIntOrNull() }.toSet()
+        } else {
+            _caught.value = setOf(25, 1, 6, 7, 4)
+        }
+
+        // Load favourites
+        val savedFavourites = prefs.getStringSet("favourites_$userKey", null)
+        if (savedFavourites != null) {
+            _favourites.value = savedFavourites.mapNotNull { it.toIntOrNull() }.toSet()
+        } else {
+            _favourites.value = setOf(25, 1, 6)
+        }
+
+        // Load theme
+        val savedThemeName = prefs.getString("theme_$userKey", ThemeSetting.System.name)
         val savedTheme = ThemeSetting.entries.find { it.name == savedThemeName } ?: ThemeSetting.System
         _theme.value = savedTheme
         applyTheme(savedTheme)
-        _searchHistoryEnabled.value = prefs.getBoolean("search_history_enabled", true)
-        _gyroscopeEnabled.value = prefs.getBoolean("gyroscope_enabled", true)
-        _screenDraggingEnabled.value = prefs.getBoolean("screen_dragging_enabled", true)
-        _resumeLastViewed.value = prefs.getBoolean("resume_last_viewed", true)
-        _notificationsEnabled.value = prefs.getBoolean("notifications_enabled", false)
-        _recentSearches.value = prefs.getString("recent_searches_csv", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-        // Load collection
-        val savedFavourites = prefs.getStringSet("favourites", null)
-        _favourites.value = if (savedFavourites == null) {
-            setOf(25, 1, 6)
-        } else {
-            savedFavourites.mapNotNull { it.toIntOrNull() }.toSet()
+        // Load recent searches
+        _recentSearches.value = prefs.getString("recent_searches_csv_$userKey", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+
+        // Sync from Firebase if online
+        viewModelScope.launch {
+            try {
+                var remoteCaughtList = emptyList<Int>()
+                var remoteFavsList = emptyList<Int>()
+                var remoteThemeStr: String? = null
+                var remoteSearchesList = emptyList<String>()
+
+                val snapshot = db.child("users").child(userKey).get().await()
+                if (snapshot.exists()) {
+                    remoteCaughtList = snapshot.child("caught").children.mapNotNull { it.getValue(Long::class.java)?.toInt() }
+                    remoteFavsList = snapshot.child("favourites").children.mapNotNull { it.getValue(Long::class.java)?.toInt() }
+                    remoteThemeStr = snapshot.child("theme").getValue(String::class.java)
+                    remoteSearchesList = snapshot.child("recent_searches").children.mapNotNull { it.getValue(String::class.java) }
+
+                    snapshot.child("search_history_enabled").getValue(Boolean::class.java)?.let {
+                        _searchHistoryEnabled.value = it
+                        prefs.edit().putBoolean("search_history_enabled", it).apply()
+                    }
+                    snapshot.child("gyroscope_enabled").getValue(Boolean::class.java)?.let {
+                        _gyroscopeEnabled.value = it
+                        prefs.edit().putBoolean("gyroscope_enabled", it).apply()
+                    }
+                    snapshot.child("screen_dragging_enabled").getValue(Boolean::class.java)?.let {
+                        _screenDraggingEnabled.value = it
+                        prefs.edit().putBoolean("screen_dragging_enabled", it).apply()
+                    }
+                    snapshot.child("resume_last_viewed").getValue(Boolean::class.java)?.let {
+                        _resumeLastViewed.value = it
+                        prefs.edit().putBoolean("resume_last_viewed", it).apply()
+                    }
+                    snapshot.child("notifications_enabled").getValue(Boolean::class.java)?.let {
+                        _notificationsEnabled.value = it
+                        prefs.edit().putBoolean("notifications_enabled", it).apply()
+                    }
+
+                    // Restore Pokémon Notes
+                    val notesSnap = snapshot.child("notes")
+                    if (notesSnap.exists()) {
+                        val roomDb = AppDatabase.getDatabase(getApplication())
+                        for (child in notesSnap.children) {
+                            val pokeId = child.key?.toIntOrNull()
+                            val nickname = child.child("nickname").getValue(String::class.java) ?: ""
+                            val note = child.child("note").getValue(String::class.java) ?: ""
+                            val timestamp = child.child("timestamp").getValue(Long::class.java) ?: System.currentTimeMillis()
+                            if (pokeId != null) {
+                                roomDb.pokemonNoteDao().insertNote(
+                                    PokemonNote(
+                                        username = user.username,
+                                        userId = userKey,
+                                        pokemonId = pokeId,
+                                        nickname = nickname,
+                                        note = note,
+                                        timestamp = timestamp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Fallback to Firestore if RTDB lists are empty
+                if (remoteCaughtList.isEmpty() || remoteFavsList.isEmpty()) {
+                    try {
+                        val firestoreDoc = FirebaseFirestore.getInstance().collection("users").document(userKey).get().await()
+                        if (firestoreDoc.exists()) {
+                            if (remoteCaughtList.isEmpty()) {
+                                remoteCaughtList = (firestoreDoc.get("caught") as? List<*>)?.mapNotNull { (it as? Long)?.toInt() ?: (it as? String)?.toIntOrNull() } ?: emptyList()
+                            }
+                            if (remoteFavsList.isEmpty()) {
+                                remoteFavsList = (firestoreDoc.get("favourites") as? List<*>)?.mapNotNull { (it as? Long)?.toInt() ?: (it as? String)?.toIntOrNull() } ?: emptyList()
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                if (remoteCaughtList.isNotEmpty()) {
+                    val merged = (_caught.value ?: emptySet()) + remoteCaughtList
+                    _caught.value = merged
+                    prefs.edit().putStringSet("caught_$userKey", merged.map { it.toString() }.toSet()).apply()
+                }
+
+                if (remoteFavsList.isNotEmpty()) {
+                    val merged = (_favourites.value ?: emptySet()) + remoteFavsList
+                    _favourites.value = merged
+                    prefs.edit().putStringSet("favourites_$userKey", merged.map { it.toString() }.toSet()).apply()
+                }
+
+                if (!remoteThemeStr.isNull_or_blank()) {
+                    val themeSetting = ThemeSetting.entries.find { it.name == remoteThemeStr } ?: ThemeSetting.System
+                    _theme.value = themeSetting
+                    prefs.edit().putString("theme_$userKey", themeSetting.name).apply()
+                    applyTheme(themeSetting)
+                }
+
+                if (remoteSearchesList.isNotEmpty()) {
+                    _recentSearches.value = remoteSearchesList
+                    prefs.edit().putString("recent_searches_csv_$userKey", remoteSearchesList.joinToString(",")).apply()
+                }
+            } catch (_: Exception) {
+                // Ignore offline sync error
+            }
         }
-
-        val savedCaught = prefs.getStringSet("caught", null)
-        _caught.value = if (savedCaught == null) {
-            setOf(25, 1, 6, 7, 4, 5, 152, 249, 250, 384, 143, 59, 130, 131, 9, 3, 65, 68, 76, 94, 149)
-        } else {
-            savedCaught.mapNotNull { it.toIntOrNull() }.toSet()
-        }
-
-        checkAndDownloadIndex(application)
     }
+
+    private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()
 
     private fun checkAndDownloadIndex(application: Application) {
         viewModelScope.launch {
@@ -211,7 +328,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     }
                     dao.insertAll(indexList)
                 } catch (e: Exception) {
-                    e.printStackTrace() // offline or failed, handled gracefully
+                    e.printStackTrace()
                 }
             }
         }
@@ -222,7 +339,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
         _currentFrame.value = stacks.getValue(tab).last()
     }
 
-    /** Pushes a new screen onto the active tab's stack. */
     fun navigate(
         screen: String,
         id: Int? = null,
@@ -235,7 +351,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
         _currentFrame.value = frame
     }
 
-    /** Pops the active tab's stack. Returns true if popped, false if at root. */
     fun goBack(): Boolean {
         val tab = _activeTab.value ?: TabId.Explore
         val stack = stacks.getValue(tab)
@@ -246,35 +361,39 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleFavourite(id: Int) {
+        val key = activeUserKey ?: return
         val current = _favourites.value ?: emptySet()
         val updated = current.toggle(id)
         _favourites.value = updated
-        prefs.edit().putStringSet("favourites", updated.map { it.toString() }.toSet()).apply()
+        prefs.edit().putStringSet("favourites_$key", updated.map { it.toString() }.toSet()).apply()
         syncToFirebase("favourites", updated.toList())
     }
 
     fun toggleCaught(id: Int) {
+        val key = activeUserKey ?: return
         val current = _caught.value ?: emptySet()
         val updated = current.toggle(id)
         _caught.value = updated
-        prefs.edit().putStringSet("caught", updated.map { it.toString() }.toSet()).apply()
+        prefs.edit().putStringSet("caught_$key", updated.map { it.toString() }.toSet()).apply()
         syncToFirebase("caught", updated.toList())
     }
 
     fun addCaught(id: Int) {
+        val key = activeUserKey ?: return
         val current = _caught.value ?: emptySet()
         if (!current.contains(id)) {
             val updated = current + id
             _caught.value = updated
-            prefs.edit().putStringSet("caught", updated.map { it.toString() }.toSet()).apply()
+            prefs.edit().putStringSet("caught_$key", updated.map { it.toString() }.toSet()).apply()
             syncToFirebase("caught", updated.toList())
         }
     }
 
     fun resetCollection() {
+        val key = activeUserKey ?: return
         _favourites.value = emptySet()
         _caught.value = emptySet()
-        prefs.edit().remove("favourites").remove("caught").apply()
+        prefs.edit().remove("favourites_$key").remove("caught_$key").apply()
         syncToFirebase("favourites", emptyList<Int>())
         syncToFirebase("caught", emptyList<Int>())
     }
@@ -289,8 +408,11 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectTheme(value: ThemeSetting) {
+        val key = activeUserKey
         _theme.value = value
-        prefs.edit().putString("theme", value.name).apply()
+        if (key != null) {
+            prefs.edit().putString("theme_$key", value.name).apply()
+        }
         applyTheme(value)
         syncToFirebase("theme", value.name)
     }
@@ -327,17 +449,19 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun addSearchToHistory(query: String) {
         if (_searchHistoryEnabled.value != true || query.isBlank()) return
+        val key = activeUserKey ?: return
         val normalized = query.trim().lowercase()
         val currentList = _recentSearches.value ?: emptyList()
         val newList = (listOf(normalized) + currentList.filter { it != normalized }).take(10)
         _recentSearches.value = newList
-        prefs.edit().putString("recent_searches_csv", newList.joinToString(",")).apply()
+        prefs.edit().putString("recent_searches_csv_$key", newList.joinToString(",")).apply()
         syncToFirebase("recent_searches", newList)
     }
 
     fun clearSearchHistory() {
+        val key = activeUserKey ?: return
         _recentSearches.value = emptyList()
-        prefs.edit().remove("recent_searches_csv").apply()
+        prefs.edit().remove("recent_searches_csv_$key").apply()
         syncToFirebase("recent_searches", emptyList<String>())
     }
 
@@ -346,8 +470,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
             _authError.value = null
             when (val result = authRepository.login(email, password)) {
                 is AuthResult.Success -> {
-                    _currentUser.value = result.user
-                    prefs.edit().putString("logged_in_user", result.user.username).apply()
+                    setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
                     _authError.value = result.message
@@ -361,8 +484,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
             _authError.value = null
             when (val result = authRepository.register(username, email, password)) {
                 is AuthResult.Success -> {
-                    _currentUser.value = result.user
-                    prefs.edit().putString("logged_in_user", result.user.username).apply()
+                    setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
                     _authError.value = result.message
@@ -380,8 +502,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
             _authError.value = null
             when (val result = authRepository.googleSignIn(idToken)) {
                 is AuthResult.Success -> {
-                    _currentUser.value = result.user
-                    prefs.edit().putString("logged_in_user", result.user.username).apply()
+                    setCurrentUser(result.user)
                 }
                 is AuthResult.Error -> {
                     _authError.value = result.message
@@ -411,8 +532,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
             _authSuccess.value = null
             when (val result = authRepository.updateUsername(newUsername)) {
                 is AuthResult.Success -> {
-                    _currentUser.value = result.user
-                    prefs.edit().putString("logged_in_user", result.user.username).apply()
+                    val updatedUser = result.user
+                    setCurrentUser(updatedUser)
                     _authSuccess.value = "Username updated successfully"
                 }
                 is AuthResult.Error -> {
@@ -423,8 +544,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() {
-        _currentUser.value = null
-        prefs.edit().remove("logged_in_user").apply()
+        prefs.edit().remove("logged_in_user").remove("logged_in_user_id").apply()
+        setCurrentUser(null)
         _activeTab.value = TabId.Explore
         stacks[TabId.Explore] = mutableListOf(NavFrame(Screen.HOME))
         stacks[TabId.Collection] = mutableListOf(NavFrame(Screen.COLLECTION))
@@ -435,25 +556,24 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun catchPokemon(id: Int) {
         val user = _currentUser.value ?: return
+        val key = user.userId.ifBlank { user.username }
         val currentCaught = _caught.value ?: emptySet()
         val newCaught = currentCaught + id
         
         _caught.value = newCaught
-        prefs.edit().putStringSet("caught_${user.username}", newCaught.map { it.toString() }.toSet()).apply()
+        prefs.edit().putStringSet("caught_$key", newCaught.map { it.toString() }.toSet()).apply()
         
-        // Also add to collection if caught (treat caught as favourites for now)
         val currentFavourites = _favourites.value ?: emptySet()
         if (!currentFavourites.contains(id)) {
             val newFavourites = currentFavourites + id
             _favourites.value = newFavourites
-            prefs.edit().putStringSet("favourites_${user.username}", newFavourites.map { it.toString() }.toSet()).apply()
+            prefs.edit().putStringSet("favourites_$key", newFavourites.map { it.toString() }.toSet()).apply()
         }
+        syncToFirebase("caught", newCaught.toList())
     }
 
     private fun Set<Int>.toggle(id: Int): Set<Int> =
         if (contains(id)) this - id else this + id
-
-
 
     fun savePokemonNote(pokemonId: Int, nickname: String, note: String) {
         val user = _currentUser.value ?: return
@@ -471,7 +591,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     )
                 )
             }
-            syncToFirebase("notes", "") // trigger SyncWorker
+            syncToFirebase("notes", "")
         }
     }
 
@@ -496,10 +616,5 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 
             WorkManager.getInstance(getApplication()).enqueue(syncRequest)
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
     }
 }

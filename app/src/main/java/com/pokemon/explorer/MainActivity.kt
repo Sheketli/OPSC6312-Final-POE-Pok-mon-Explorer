@@ -132,6 +132,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkNotificationIntent(intent: android.content.Intent?) {
+        if (intent != null && intent.hasExtra("TARGET_SCREEN")) {
+            val target = intent.getStringExtra("TARGET_SCREEN")
+            val extraData = intent.getStringExtra("EXTRA_DATA")
+            intent.removeExtra("TARGET_SCREEN")
+            intent.removeExtra("EXTRA_DATA")
+            when (target) {
+                "friends" -> {
+                    startActivity(android.content.Intent(this, com.pokemon.explorer.ui.FriendsActivity::class.java))
+                }
+                "chat" -> {
+                    val chatIntent = android.content.Intent(this, com.pokemon.explorer.ui.ChatActivity::class.java).apply {
+                        extraData?.let { putExtra("TARGET_FRIEND", it) }
+                    }
+                    startActivity(chatIntent)
+                }
+                "trade" -> {
+                    startActivity(android.content.Intent(this, com.pokemon.explorer.ui.TradeSubmissionActivity::class.java))
+                }
+            }
+        }
         if (intent != null && intent.hasExtra("rare_pokemon_id")) {
             // FCM data payloads are sometimes delivered as Strings, but our NotificationHelper uses typed values.
             val pokemonId = intent.getIntExtra("rare_pokemon_id", -1).let {

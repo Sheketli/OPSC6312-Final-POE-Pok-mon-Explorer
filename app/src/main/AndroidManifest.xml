@@ -10,6 +10,13 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+    </queries>
+
     <application
         android:name=".PokemonApplication"
         android:allowBackup="true"
@@ -36,13 +43,31 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.PokemonExplorer" />
 
+        <activity
+            android:name=".ui.FriendsActivity"
+            android:label="Friends Portal"
+            android:exported="true"
+            android:theme="@style/Theme.PokemonExplorer" />
+
+        <activity
+            android:name=".ui.ChatActivity"
+            android:label="Chat"
+            android:exported="true"
+            android:theme="@style/Theme.PokemonExplorer" />
+
+        <activity
+            android:name=".ui.TradeSubmissionActivity"
+            android:label="Trade Hub"
+            android:exported="true"
+            android:theme="@style/Theme.PokemonExplorer" />
+
         <service
             android:name=".data.sync.BulkDownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
         <service
-            android:name=".MyFirebaseMessagingService"
+            android:name=".messaging.PokeNotificationService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
