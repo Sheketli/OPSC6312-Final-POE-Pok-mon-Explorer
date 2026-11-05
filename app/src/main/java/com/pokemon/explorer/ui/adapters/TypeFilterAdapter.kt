@@ -27,7 +27,7 @@ class TypeFilterAdapter(
         val binding = holder.binding
 
         val isSelected = filter == selectedFilter
-        binding.tvChipLabel.text = if (filter == "All") "✦ All" else filter
+        binding.tvChipLabel.text = if (filter == "All") binding.root.context.getString(R.string.ui_all) else filter
 
         if (isSelected) {
             val rarityColor = com.pokemon.explorer.model.PokemonRarity.values().find { it.tierName == filter }?.getColorInt()

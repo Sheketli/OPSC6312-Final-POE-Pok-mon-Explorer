@@ -3,11 +3,11 @@
     <item
         android:id="@+id/nav_explore"
         android:icon="@drawable/ic_explore"
-        android:title="Explore" />
+        android:title="@string/ui_explore" />
     <item
         android:id="@+id/nav_collection"
         android:icon="@drawable/ic_collection"
-        android:title="Collection" />
+        android:title="@string/ui_collection" />
     <item
         android:id="@+id/nav_placeholder"
         android:title=""
@@ -15,9 +15,9 @@
     <item
         android:id="@+id/nav_compare"
         android:icon="@drawable/ic_compare"
-        android:title="Compare" />
+        android:title="@string/ui_compare" />
     <item
         android:id="@+id/nav_guide"
         android:icon="@drawable/ic_guide"
-        android:title="Guide" />
+        android:title="@string/ui_guide" />
 </menu>

@@ -8,6 +8,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.fragment.app.activityViewModels
 import android.os.Build
 import androidx.core.content.ContextCompat
@@ -35,9 +37,9 @@ class SettingsFragment : Fragment() {
     ) { isGranted: Boolean ->
         binding.toggleNotifications.check(if (isGranted) R.id.btn_notif_on else R.id.btn_notif_off)
         if (isGranted) {
-            Toast.makeText(requireContext(), "Notifications enabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_notifications_enabled), Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(requireContext(), "Notifications disabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_notifications_disabled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -54,6 +56,25 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.btnBack.setOnClickListener { appState.goBack() }
+
+        val languageCodes = resources.getStringArray(R.array.supported_language_codes)
+        val languageNames = resources.getStringArray(R.array.supported_language_names)
+        val selectedLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language
+            ?: resources.configuration.locales[0].language
+        val currentIndex = languageCodes.indexOf(selectedLanguage).coerceAtLeast(0)
+        binding.btnLanguage.text = languageNames[currentIndex]
+        binding.btnLanguage.setOnClickListener {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.ui_language)
+                .setSingleChoiceItems(languageNames, currentIndex) { dialog, index ->
+                    dialog.dismiss()
+                    AppCompatDelegate.setApplicationLocales(
+                        LocaleListCompat.forLanguageTags(languageCodes[index])
+                    )
+                }
+                .setNegativeButton(R.string.ui_cancel, null)
+                .show()
+        }
 
         // Setup Notifications Switch
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -75,12 +96,12 @@ class SettingsFragment : Fragment() {
                             // Request permission
                             if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                                 MaterialAlertDialogBuilder(requireContext())
-                                    .setTitle("Enable Notifications")
-                                    .setMessage("Please allow notifications in order to receive alerts.")
-                                    .setPositiveButton("OK") { _, _ ->
+                                    .setTitle(getString(R.string.ui_enable_notifications))
+                                    .setMessage(getString(R.string.ui_please_allow_notifications_in_order_to_receive_alerts))
+                                    .setPositiveButton(getString(R.string.ui_ok)) { _, _ ->
                                         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
-                                    .setNegativeButton("Cancel") { dialog, _ ->
+                                    .setNegativeButton(getString(R.string.ui_cancel)) { dialog, _ ->
                                         binding.toggleNotifications.check(R.id.btn_notif_off)
                                         dialog.dismiss()
                                     }
@@ -91,7 +112,7 @@ class SettingsFragment : Fragment() {
                         }
                     } else if (checkedId == R.id.btn_notif_off) {
                         // Turn off notifications via system settings
-                        Toast.makeText(requireContext(), "To disable notifications, please go to Android Settings.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), getString(R.string.ui_to_disable_notifications_please_go_to_android_settings), Toast.LENGTH_LONG).show()
                         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                             putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
                         }
@@ -106,7 +127,7 @@ class SettingsFragment : Fragment() {
             binding.toggleNotifications.check(R.id.btn_notif_on)
             binding.toggleNotifications.addOnButtonCheckedListener { _, checkedId, isChecked ->
                 if (isChecked && checkedId == R.id.btn_notif_off) {
-                    Toast.makeText(requireContext(), "To disable notifications, please go to Android Settings.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), getString(R.string.ui_to_disable_notifications_please_go_to_android_settings), Toast.LENGTH_LONG).show()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                             putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
@@ -187,17 +208,17 @@ class SettingsFragment : Fragment() {
 
         binding.btnClearCache.setOnClickListener {
             PokeApi.clearCache()
-            Toast.makeText(requireContext(), "Cache cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_cache_cleared), Toast.LENGTH_SHORT).show()
         }
 
         binding.btnClearHistory.setOnClickListener {
             appState.clearSearchHistory()
-            Toast.makeText(requireContext(), "Search history cleared", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_search_history_cleared), Toast.LENGTH_SHORT).show()
         }
 
         binding.btnResetCollection.setOnClickListener {
             appState.resetCollection()
-            Toast.makeText(requireContext(), "Collection reset", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_collection_reset), Toast.LENGTH_SHORT).show()
         }
 
         binding.btnManageAccount.setOnClickListener {
@@ -205,7 +226,7 @@ class SettingsFragment : Fragment() {
         }
 
         binding.btnDownloadAll.setOnClickListener {
-            Toast.makeText(requireContext(), "Starting full database download in background...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_starting_full_database_download_in_background), Toast.LENGTH_SHORT).show()
             val serviceIntent = Intent(requireContext(), BulkDownloadService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 ContextCompat.startForegroundService(requireContext(), serviceIntent)
@@ -224,7 +245,7 @@ class SettingsFragment : Fragment() {
                 rarePokemonName,
                 expiryTimeMillis
             )
-            Toast.makeText(requireContext(), "Test notification sent! Check your notification tray.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.ui_test_notification_sent_check_your_notification_tray), Toast.LENGTH_SHORT).show()
         }
 
         binding.btnLogout.setOnClickListener {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep the codes and native names in the same order. -->
+    <string-array name="supported_language_codes" translatable="false">
+        <item>en</item>
+        <item>st</item>
+        <item>zu</item>
+        <item>xh</item>
+        <item>tn</item>
+    </string-array>
+    <string-array name="supported_language_names" translatable="false">
+        <item>English</item>
+        <item>Sesotho</item>
+        <item>isiZulu</item>
+        <item>isiXhosa</item>
+        <item>Setswana</item>
+    </string-array>
+</resources>

@@ -82,7 +82,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Scanning Area..."
+                android:text="@string/ui_scanning_area"
                 android:textColor="#000000"
                 android:textSize="24sp"
                 android:textStyle="bold"
@@ -106,7 +106,7 @@
                     android:background="@drawable/bg_type_pill"
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="4dp"
-                    android:text="TYPE"
+                    android:text="@string/ui_type"
                     android:textColor="#FFFFFF"
                     android:textSize="12sp" />
 
@@ -130,7 +130,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="Locking signatures..."
+                android:text="@string/ui_locking_signatures"
                 android:textColor="#444444"
                 android:textSize="14sp"
                 app:layout_constraintTop_toBottomOf="@id/llArAttributeLayout" />
@@ -141,7 +141,7 @@
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
                 android:backgroundTint="@color/poke_red"
-                android:text="CATCH POKÉMON"
+                android:text="@string/ui_catch_pok_mon"
                 android:textColor="#FFFFFF"
                 app:cornerRadius="8dp"
                 app:layout_constraintTop_toBottomOf="@id/tvArPokemonDescription" />

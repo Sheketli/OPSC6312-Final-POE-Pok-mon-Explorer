@@ -41,10 +41,10 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted: Boolean ->
         if (isGranted) {
             // FCM SDK (and your app) can post notifications.
-            Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.ui_notifications_enabled), Toast.LENGTH_SHORT).show()
         } else {
             // Inform user that your app will not show notifications.
-            Toast.makeText(this, "Notifications disabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.ui_notifications_disabled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -58,12 +58,12 @@ class MainActivity : AppCompatActivity() {
             } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                 // Display an educational UI explaining to the user the features that will be enabled
                 MaterialAlertDialogBuilder(this)
-                    .setTitle("Enable Notifications")
+                    .setTitle(getString(R.string.ui_enable_notifications))
                     .setMessage("Pokémon Explorer uses notifications to alert you about rare spawns and game events. Please enable them to stay updated!")
-                    .setPositiveButton("OK") { _, _ ->
+                    .setPositiveButton(getString(R.string.ui_ok)) { _, _ ->
                         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
-                    .setNegativeButton("No thanks") { dialog, _ ->
+                    .setNegativeButton(getString(R.string.ui_no_thanks)) { dialog, _ ->
                         dialog.dismiss()
                     }
                     .show()

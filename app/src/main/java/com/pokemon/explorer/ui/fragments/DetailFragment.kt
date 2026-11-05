@@ -147,7 +147,7 @@ class DetailFragment : Fragment() {
             b.llAbilities.addView(chip)
         }
 
-        b.tvTotalStats.text = "Total: ${detail.totalStats}"
+        b.tvTotalStats.text = getString(R.string.total_stats, detail.totalStats)
         b.llStatsContainer.removeAllViews()
         detail.stats.forEach { stat ->
             val statRow = LinearLayout(requireContext()).apply {
@@ -209,10 +209,10 @@ class DetailFragment : Fragment() {
         val b = _binding ?: return
         val isFav = appState.favourites.value?.contains(pokemonId) == true
         b.btnFavourite.setImageResource(if (isFav) R.drawable.ic_heart_filled else R.drawable.ic_heart)
-        b.btnActionFavourite.text = if (isFav) "Saved" else "Favourite"
+        b.btnActionFavourite.text = if (isFav) getString(R.string.ui_saved) else getString(R.string.ui_favourite)
 
         val isCaught = appState.caught.value?.contains(pokemonId) == true
-        b.btnActionCatch.text = if (isCaught) "Caught!" else "Catch"
+        b.btnActionCatch.text = if (isCaught) getString(R.string.ui_caught_label) else getString(R.string.ui_catch)
         
         if (isCaught) {
             b.llNoteSection.visibility = View.VISIBLE
@@ -243,7 +243,7 @@ class DetailFragment : Fragment() {
             } else {
                 b.tvNicknameDisplay.visibility = View.GONE
                 b.tvNoteDisplay.visibility = View.VISIBLE
-                b.tvNoteDisplay.text = "Tap the edit icon to add a nickname or note."
+                b.tvNoteDisplay.text = getString(R.string.ui_tap_the_edit_icon_to_add_a_nickname_or_note)
             }
         }
     }
@@ -262,16 +262,16 @@ class DetailFragment : Fragment() {
             }
             
             androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("Edit Details")
+                .setTitle(getString(R.string.ui_edit_details))
                 .setView(dialogView)
-                .setPositiveButton("Save") { dialog, _ ->
+                .setPositiveButton(getString(R.string.ui_save)) { dialog, _ ->
                     val newNickname = etNickname.text.toString().trim()
                     val newNote = etNote.text.toString().trim()
                     appState.savePokemonNote(pokemonId, newNickname, newNote)
                     loadNote()
                     dialog.dismiss()
                 }
-                .setNegativeButton("Cancel") { dialog, _ ->
+                .setNegativeButton(getString(R.string.ui_cancel)) { dialog, _ ->
                     dialog.dismiss()
                 }
                 .show()

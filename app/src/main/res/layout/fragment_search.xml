@@ -19,7 +19,7 @@
             android:layout_width="38dp"
             android:layout_height="38dp"
             android:background="@drawable/bg_circle_button"
-            android:contentDescription="Back"
+            android:contentDescription="@string/ui_back"
             android:padding="10dp"
             android:src="@drawable/ic_back" />
 
@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:hint="Search by name or Pokédex #"
+            android:hint="@string/ui_search_by_name_or_pok_dex"
             android:textColorHint="@color/text_low"
             app:boxBackgroundColor="@color/surface_07"
             app:boxCornerRadiusBottomEnd="12dp"
@@ -97,7 +97,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.15"
-                android:text="RECENT SEARCHES"
+                android:text="@string/ui_recent_searches"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp"
                 android:visibility="gone" />
@@ -114,7 +114,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.15"
-                android:text="POPULAR SEARCHES"
+                android:text="@string/ui_popular_searches"
                 android:textColor="@color/text_faint"
                 android:textSize="12sp" />
 
@@ -130,7 +130,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:text="No Pokémon Found\nTry searching by exact name or Pokédex number"
+                android:text="@string/ui_no_pok_mon_found_ntry_searching_by_exact_name_or_pok_dex_number"
                 android:textAlignment="center"
                 android:textColor="@color/text_low"
                 android:textSize="14sp"

@@ -1,5 +1,6 @@
 package com.pokemon.explorer.ui.fragments
 
+import com.pokemon.explorer.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -44,13 +45,13 @@ class RegisterFragment : Fragment() {
 
             if (password != confirm) {
                 binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = "Passwords do not match"
+                binding.tvError.text = getString(R.string.ui_passwords_do_not_match)
                 return@setOnClickListener
             }
 
             if (email.isBlank()) {
                 binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = "Email cannot be empty"
+                binding.tvError.text = getString(R.string.ui_email_cannot_be_empty)
                 return@setOnClickListener
             }
 
