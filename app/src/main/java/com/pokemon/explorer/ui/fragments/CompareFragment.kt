@@ -18,9 +18,13 @@ import com.pokemon.explorer.data.PokeApi
 import com.pokemon.explorer.data.PokemonDetail
 import com.pokemon.explorer.data.STAT_LABELS
 import com.pokemon.explorer.data.typeColor
+import com.pokemon.explorer.data.predictBattle
+import com.pokemon.explorer.data.ComparisonSide
 import com.pokemon.explorer.databinding.FragmentCompareBinding
 import com.pokemon.explorer.state.AppState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import java.util.Locale
 
 class CompareFragment : Fragment() {
@@ -34,6 +38,7 @@ class CompareFragment : Fragment() {
 
     private var detailA: PokemonDetail? = null
     private var detailB: PokemonDetail? = null
+    private var loadJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +64,7 @@ class CompareFragment : Fragment() {
             val query = binding.etPickerA.text?.toString().orEmpty().trim()
             query.toIntOrNull()?.let { idA = it; loadData() } ?: run {
                 if (query.isNotEmpty()) {
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         PokeApi.find(query)?.let { idA = it.id; loadData() }
                     }
                 }
@@ -70,7 +75,7 @@ class CompareFragment : Fragment() {
             val query = binding.etPickerB.text?.toString().orEmpty().trim()
             query.toIntOrNull()?.let { idB = it; loadData() } ?: run {
                 if (query.isNotEmpty()) {
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         PokeApi.find(query)?.let { idB = it.id; loadData() }
                     }
                 }
@@ -81,13 +86,21 @@ class CompareFragment : Fragment() {
     }
 
     private fun loadData() {
-        viewLifecycleOwner.lifecycleScope.launch {
+        loadJob?.cancel()
+        binding.tvComparisonResult.visibility = View.GONE
+        binding.tvPredictionBasis.visibility = View.GONE
+        loadJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
                 detailA = PokeApi.detail(idA)
                 detailB = PokeApi.detail(idB)
                 renderComparison()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Ignore compare error
+                _binding?.tvComparisonResult?.apply {
+                    setText(R.string.comparison_load_error)
+                    visibility = View.VISIBLE
+                }
             }
         }
     }
@@ -184,6 +197,27 @@ class CompareFragment : Fragment() {
 
             b.llCompareRows.addView(row)
         }
+
+        val prediction = predictBattle(pA, pB)
+        b.tvComparisonResult.visibility = View.VISIBLE
+        if (prediction == null) {
+            b.tvComparisonResult.setText(R.string.comparison_unavailable)
+            return
+        }
+        val nameA = b.tvNameA.text.toString()
+        val nameB = b.tvNameB.text.toString()
+        val strength = when (prediction.stronger) {
+            ComparisonSide.FIRST -> getString(R.string.comparison_strength, nameA, pA.totalStats, pB.totalStats)
+            ComparisonSide.SECOND -> getString(R.string.comparison_strength, nameB, pB.totalStats, pA.totalStats)
+            ComparisonSide.TIE -> getString(R.string.comparison_equal_strength, pA.totalStats)
+        }
+        val winner = when (prediction.winner) {
+            ComparisonSide.FIRST -> getString(R.string.comparison_winner, nameA)
+            ComparisonSide.SECOND -> getString(R.string.comparison_winner, nameB)
+            ComparisonSide.TIE -> getString(R.string.comparison_draw)
+        }
+        b.tvComparisonResult.text = "$strength\n$winner"
+        b.tvPredictionBasis.visibility = View.VISIBLE
     }
 
     override fun onDestroyView() {

@@ -156,4 +156,11 @@
     <string name="empty_caught">No Pokémon Caught\nMark Pokémon as caught from their detail page.</string>
     <string name="results_found">%1$d Pokémon found</string>
     <string name="total_stats">Total: %1$d</string>
+    <string name="battle_prediction_basis">Estimate using base stats and type matchups, with equal-power type-matched attacks. Speed breaks equal-turn ties.</string>
+    <string name="comparison_strength">Stronger by base stats · %1$s (%2$d vs %3$d)</string>
+    <string name="comparison_equal_strength">Equal base stat totals · %1$d</string>
+    <string name="comparison_winner">Predicted winner · %1$s</string>
+    <string name="comparison_draw">Predicted battle result · Draw</string>
+    <string name="comparison_unavailable">Battle prediction needs complete stats and known Pokémon types.</string>
+    <string name="comparison_load_error">Could not load the comparison. Check your connection and try again.</string>
 </resources>

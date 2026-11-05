@@ -2,6 +2,7 @@ package com.pokemon.explorer.data.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "trade_requests")
 data class TradeRequestEntity(
@@ -12,5 +13,8 @@ data class TradeRequestEntity(
     val receiverUserId: String = "",
     val offeredPokemonId: String,
     val optionalDescription: String?,
-    val tradeStatus: String // "PENDING", "ACCEPTED", "DECLINED"
+    val tradeStatus: String, // PENDING, COUNTERED, ACCEPTED, DECLINED
+    val returnedPokemonId: String? = null,
+    @ColumnInfo(defaultValue = "0") val createdAt: Long = 0,
+    @ColumnInfo(defaultValue = "0") val completedAt: Long = 0,
 )

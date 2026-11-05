@@ -16,6 +16,12 @@ class AuthRepository(private val userDao: UserDao) {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseDatabase.getInstance().reference
 
+    private suspend fun publishTrainerProfile(uid: String, username: String) {
+        db.child("trainer_profiles").child(uid).setValue(
+            mapOf("userId" to uid, "username" to username)
+        ).await()
+    }
+
     suspend fun register(username: String, email: String, password: String): AuthResult {
         if (username.isBlank() || email.isBlank() || password.isBlank()) {
             return AuthResult.Error("Username, email and password cannot be empty")
@@ -33,6 +39,7 @@ class AuthRepository(private val userDao: UserDao) {
                     "email" to email
                 )
                 db.child("users").child(firebaseUser.uid).setValue(userMap).await()
+                publishTrainerProfile(firebaseUser.uid, username)
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(firebaseUser.uid).set(userMap).await()
                 
                 val user = User(
@@ -64,6 +71,7 @@ class AuthRepository(private val userDao: UserDao) {
                 // Fetch username from Realtime Database
                 val snapshot = db.child("users").child(firebaseUser.uid).get().await()
                 val username = snapshot.child("username").getValue(String::class.java) ?: "User"
+                publishTrainerProfile(firebaseUser.uid, username)
                 
                 val user = User(
                     username = username,
@@ -111,6 +119,7 @@ class AuthRepository(private val userDao: UserDao) {
                     "email" to email
                 )
                 db.child("users").child(firebaseUser.uid).setValue(userMap).await()
+                publishTrainerProfile(firebaseUser.uid, username)
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(firebaseUser.uid).set(userMap).await()
 
                 val user = User(username = username, userId = firebaseUser.uid, email = email, passwordHash = "")
@@ -168,7 +177,11 @@ class AuthRepository(private val userDao: UserDao) {
             }
             
             // 2. Update Firebase RTDB & Firestore
-            db.child("users").child(firebaseUser.uid).child("username").setValue(newUsername).await()
+            db.updateChildren(mapOf(
+                "users/${firebaseUser.uid}/username" to newUsername,
+                "trainer_profiles/${firebaseUser.uid}/username" to newUsername,
+                "trainer_profiles/${firebaseUser.uid}/userId" to firebaseUser.uid
+            )).await()
             com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(firebaseUser.uid).update("username", newUsername).await()
             
             // 3. Update Firebase Auth Profile
@@ -196,6 +209,7 @@ class AuthRepository(private val userDao: UserDao) {
             val dbUsername = snapshot?.child("username")?.getValue(String::class.java) ?: firebaseUser.displayName ?: ""
 
             // Delete from Firebase RTDB & Firestore
+            db.child("trainer_profiles").child(uid).removeValue().await()
             try { db.child("users").child(uid).removeValue().await() } catch (_: Exception) {}
             try { com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(uid).delete().await() } catch (_: Exception) {}
 

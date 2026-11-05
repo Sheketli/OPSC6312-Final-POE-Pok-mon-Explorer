@@ -6,11 +6,29 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.pokemon.explorer.worker.RareSpawnWorker
+import com.google.firebase.auth.FirebaseAuth
+import com.pokemon.explorer.data.repository.SocialRepository
 
 class PokemonApplication : Application(), ImageLoaderFactory {
+    private var socialAccountId: String? = null
+    private var socialSession: SocialRepository? = null
+
+    @Synchronized
+    fun socialRepository(): SocialRepository {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (socialSession == null || socialAccountId != uid) {
+            socialSession?.close()
+            socialAccountId = uid
+            socialSession = SocialRepository(this)
+        }
+        return socialSession!!
+    }
 
     override fun onCreate() {
         super.onCreate()
+        FirebaseAuth.getInstance().addAuthStateListener {
+            socialRepository()
+        }
         // Automatically start the background service for rare spawns when the app launches!
         RareSpawnWorker.start(this)
     }

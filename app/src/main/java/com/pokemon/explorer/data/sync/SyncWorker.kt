@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.pokemon.explorer.data.db.AppDatabase
+import com.pokemon.explorer.data.CollectionPreferences
 import kotlinx.coroutines.tasks.await
 
 class SyncWorker(
@@ -30,11 +31,13 @@ class SyncWorker(
         val firestore = FirebaseFirestore.getInstance()
         val prefs = applicationContext.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
         val userKey = prefs.getString("logged_in_user_id", uid) ?: uid
+        if (userKey != uid) return Result.retry()
 
         return try {
             val processedTypes = mutableSetOf<String>()
 
             for (action in actions) {
+                if (action.type == "caught" && action.payload.isNotBlank() && action.payload != uid) continue
                 if (!processedTypes.contains(action.type)) {
                     processedTypes.add(action.type)
                     when (action.type) {
@@ -49,9 +52,15 @@ class SyncWorker(
                             }
                         }
                         "caught" -> {
-                            val saved = prefs.getStringSet("caught_$userKey", null) ?: prefs.getStringSet("caught", emptySet()) ?: emptySet()
-                            val list = saved.mapNotNull { it.toIntOrNull() }
-                            rtdb.child("users").child(uid).child("caught").setValue(list).await()
+                            val snapshot = CollectionPreferences.syncSnapshot(prefs, uid)
+                            val list = snapshot.caught.toList()
+                            val removed = snapshot.removed.map { it.toString() }
+                            val appliedTrades = snapshot.appliedTrades.toList()
+                            rtdb.child("users").child(uid).updateChildren(mapOf(
+                                "caught" to list,
+                                "caught_removed" to removed,
+                                "applied_trades" to appliedTrades
+                            )).await()
                             try {
                                 firestore.collection("users").document(uid).update("caught", list).await()
                             } catch (_: Exception) {

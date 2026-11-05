@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FriendshipDao {
@@ -18,6 +19,12 @@ interface FriendshipDao {
 
     @Query("SELECT * FROM friendships WHERE userOne = :username OR userTwo = :username")
     suspend fun getFriendshipsForUser(username: String): List<FriendshipEntity>
+
+    @Query("SELECT * FROM friendships WHERE userOne = :username COLLATE NOCASE OR userTwo = :username COLLATE NOCASE")
+    fun observeFriendshipsForUser(username: String): Flow<List<FriendshipEntity>>
+
+    @Query("DELETE FROM friendships")
+    suspend fun clearFriendships()
 
     @Query("SELECT * FROM friendships WHERE (userOne = :userA AND userTwo = :userB) OR (userOne = :userB AND userTwo = :userA) LIMIT 1")
     suspend fun getFriendshipBetween(userA: String, userB: String): FriendshipEntity?

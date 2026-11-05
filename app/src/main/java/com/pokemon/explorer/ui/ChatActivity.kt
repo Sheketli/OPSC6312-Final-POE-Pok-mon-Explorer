@@ -11,6 +11,8 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.pokemon.explorer.data.db.MessageEntity
@@ -18,7 +20,12 @@ import com.pokemon.explorer.data.repository.SocialRepository
 import com.pokemon.explorer.databinding.ActivityChatViewBinding
 import com.pokemon.explorer.databinding.ItemChatMessageBinding
 import com.pokemon.explorer.state.AppState
+import com.pokemon.explorer.PokemonApplication
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.collect
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,14 +38,16 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var chatAdapter: ChatAdapter
     private var targetFriendUsername: String = ""
     private var currentUsername: String = ""
+    private var messagesJob: Job? = null
+    private var sendJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityChatViewBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        socialRepository = SocialRepository(this)
-        targetFriendUsername = intent.getStringExtra("TARGET_FRIEND") ?: "Trainer"
+        socialRepository = (application as PokemonApplication).socialRepository()
+        targetFriendUsername = intent.getStringExtra("TARGET_FRIEND").orEmpty()
 
         binding.tvChatHeaderName.text = targetFriendUsername
         binding.btnBackFromChat.setOnClickListener { finish() }
@@ -58,27 +67,50 @@ class ChatActivity : AppCompatActivity() {
         binding.btnSendMessage.setOnClickListener {
             val text = binding.etMessageInput.text.toString().trim()
             if (text.isNotEmpty() && currentUsername.isNotEmpty()) {
-                lifecycleScope.launch {
-                    val success = socialRepository.sendMessage(currentUsername, targetFriendUsername, text)
-                    if (success) {
-                        binding.etMessageInput.text.clear()
-                        loadMessages()
-                        Toast.makeText(this@ChatActivity, "Message delivered securely.", Toast.LENGTH_SHORT).show()
+                if (sendJob?.isActive == true) return@setOnClickListener
+                sendJob = lifecycleScope.launch {
+                    binding.btnSendMessage.isEnabled = false
+                    try {
+                        socialRepository.sendMessage(currentUsername, targetFriendUsername, text)
+                        if (binding.etMessageInput.text.toString().trim() == text) {
+                            binding.etMessageInput.text.clear()
+                        }
+                    } catch (e: TimeoutCancellationException) {
+                        showError("Message confirmation timed out. Check the conversation before retrying.")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        showError(e.localizedMessage ?: "Could not send the message.")
+                    } finally {
+                        binding.btnSendMessage.isEnabled = true
+                    }
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                socialRepository.messageSyncError.collect { error -> error?.let { showError(it) } }
+            }
+        }
+    }
+
+    private fun loadMessages() {
+        messagesJob?.cancel()
+        if (currentUsername.isBlank() || targetFriendUsername.isBlank()) return
+        messagesJob = lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                socialRepository.observeMessages(targetFriendUsername).collect { messages ->
+                    chatAdapter.submitList(messages)
+                    if (messages.isNotEmpty()) {
+                        binding.rvMessageList.smoothScrollToPosition(messages.size - 1)
                     }
                 }
             }
         }
     }
 
-    private fun loadMessages() {
-        if (currentUsername.isBlank() || targetFriendUsername.isBlank()) return
-        lifecycleScope.launch {
-            val messages = socialRepository.getMessagesBetween(currentUsername, targetFriendUsername)
-            chatAdapter.submitList(messages)
-            if (messages.isNotEmpty()) {
-                binding.rvMessageList.smoothScrollToPosition(messages.size - 1)
-            }
-        }
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }
 

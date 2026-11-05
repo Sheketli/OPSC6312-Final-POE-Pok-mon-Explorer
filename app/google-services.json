@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "113931962319-sgobhh79oujf2h64vuan1i4v4219qaog.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pokemon.explorer",
+            "certificate_hash": "a31d6fb3e83c6d34034849673ece1a0564ca1834"
+          }
+        },
+        {
           "client_id": "113931962319-irb7nb433kmcsrsgehv3lmm30q5gdfmm.apps.googleusercontent.com",
           "client_type": 3
         }

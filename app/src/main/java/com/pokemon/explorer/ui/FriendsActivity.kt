@@ -11,13 +11,20 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.pokemon.explorer.data.repository.SocialRepository
 import com.pokemon.explorer.databinding.ActivityFriendsBinding
 import com.pokemon.explorer.databinding.ItemFriendRowBinding
 import com.pokemon.explorer.state.AppState
+import com.pokemon.explorer.PokemonApplication
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.collect
 
 class FriendsActivity : AppCompatActivity() {
 
@@ -26,45 +33,42 @@ class FriendsActivity : AppCompatActivity() {
     private lateinit var socialRepository: SocialRepository
     private lateinit var friendsAdapter: FriendsAdapter
     private var currentUsername: String = ""
+    private var listJob: Job? = null
+    private var actionJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityFriendsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        socialRepository = SocialRepository(this)
-
-        appState.currentUser.observe(this) { user ->
-            currentUsername = user?.username ?: ""
-            loadFriends()
-        }
+        socialRepository = (application as PokemonApplication).socialRepository()
 
         binding.btnBackFromFriends.setOnClickListener { finish() }
 
         friendsAdapter = FriendsAdapter(
             onAccept = { friendUsername ->
-                lifecycleScope.launch {
+                runFriendAction {
                     socialRepository.acceptFriendRequest(currentUsername, friendUsername)
                     Toast.makeText(this@FriendsActivity, "Friend request accepted!", Toast.LENGTH_SHORT).show()
                     loadFriends()
                 }
             },
             onDecline = { friendUsername ->
-                lifecycleScope.launch {
+                runFriendAction {
                     socialRepository.declineFriendRequest(currentUsername, friendUsername)
                     Toast.makeText(this@FriendsActivity, "Friend request declined.", Toast.LENGTH_SHORT).show()
                     loadFriends()
                 }
             },
             onCancelRequest = { friendUsername ->
-                lifecycleScope.launch {
+                runFriendAction {
                     socialRepository.cancelFriendRequest(currentUsername, friendUsername)
                     Toast.makeText(this@FriendsActivity, "Friend request unrequested.", Toast.LENGTH_SHORT).show()
                     loadFriends()
                 }
             },
             onRemove = { friendUsername ->
-                lifecycleScope.launch {
+                runFriendAction {
                     socialRepository.removeFriend(currentUsername, friendUsername)
                     Toast.makeText(this@FriendsActivity, "Removed $friendUsername from friends.", Toast.LENGTH_SHORT).show()
                     loadFriends()
@@ -83,7 +87,7 @@ class FriendsActivity : AppCompatActivity() {
                 startActivity(intent)
             },
             onAddFriend = { targetUsername ->
-                lifecycleScope.launch {
+                runFriendAction {
                     val success = socialRepository.sendFriendRequest(currentUsername, targetUsername)
                     if (success) {
                         Toast.makeText(this@FriendsActivity, "Friend request sent to $targetUsername!", Toast.LENGTH_SHORT).show()
@@ -99,10 +103,24 @@ class FriendsActivity : AppCompatActivity() {
         binding.rvFriendsList.layoutManager = LinearLayoutManager(this)
         binding.rvFriendsList.adapter = friendsAdapter
 
+        appState.currentUser.observe(this) { user ->
+            currentUsername = user?.username ?: ""
+            loadFriends()
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                socialRepository.friendshipSyncError.collect { message ->
+                    if (message != null) {
+                        Toast.makeText(this@FriendsActivity, message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
         binding.btnSendFriendRequest.setOnClickListener {
             val query = binding.etFriendSearchInput.text.toString().trim()
             if (query.isNotEmpty() && currentUsername.isNotEmpty()) {
-                lifecycleScope.launch {
+                runFriendAction {
                     val success = socialRepository.sendFriendRequest(currentUsername, query)
                     if (success) {
                         Toast.makeText(this@FriendsActivity, "Friend request sent to $query!", Toast.LENGTH_SHORT).show()
@@ -129,68 +147,112 @@ class FriendsActivity : AppCompatActivity() {
         })
     }
 
-    private fun loadFriends() {
-        if (currentUsername.isBlank()) return
-        lifecycleScope.launch {
-            val list = socialRepository.getFriendships(currentUsername)
-            val items = list.map { entity ->
-                val friendName = if (entity.userOne == currentUsername) entity.userTwo else entity.userOne
-                val isReceived = entity.userTwo == currentUsername && entity.status == "PENDING_SENDER_ONE"
-                val isSent = entity.userOne == currentUsername && entity.status == "PENDING_SENDER_ONE"
-                FriendItem(
-                    username = friendName,
-                    status = entity.status,
-                    isPendingReceived = isReceived,
-                    isPendingSent = isSent,
-                    isAccepted = entity.status == "ACCEPTED",
-                    isSearchResult = false
-                )
-            }.sortedWith(compareByDescending<FriendItem> { it.isPendingReceived }.thenByDescending { it.isPendingSent })
-
-            if (items.isEmpty()) {
-                binding.tvEmptyFriendsMessage.visibility = View.VISIBLE
-                binding.tvEmptyFriendsMessage.text = "No friends or pending requests yet.\nSearch a trainer username above to send a request!"
-                binding.rvFriendsList.visibility = View.GONE
-            } else {
-                binding.tvEmptyFriendsMessage.visibility = View.GONE
-                binding.rvFriendsList.visibility = View.VISIBLE
+    private fun runFriendAction(action: suspend () -> Unit) {
+        if (actionJob?.isActive == true) return
+        actionJob = lifecycleScope.launch {
+            binding.btnSendFriendRequest.isEnabled = false
+            try {
+                action()
+            } catch (e: TimeoutCancellationException) {
+                Toast.makeText(this@FriendsActivity,
+                    "Could not confirm the request. Check your connection and refresh before retrying.",
+                    Toast.LENGTH_LONG).show()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Toast.makeText(this@FriendsActivity,
+                    e.localizedMessage ?: "Could not update the friend request.",
+                    Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnSendFriendRequest.isEnabled = true
             }
-            friendsAdapter.submitList(items)
+        }
+    }
+
+    private fun loadFriends() {
+        listJob?.cancel()
+        if (currentUsername.isBlank()) return
+        listJob = lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                socialRepository.observeFriendships(currentUsername).collect { list ->
+                    val items = list.map { entity ->
+                        val friendName = if (entity.userOne.equals(currentUsername, true)) entity.userTwo else entity.userOne
+                        val isReceived = entity.userTwo.equals(currentUsername, true) && entity.status == "PENDING_SENDER_ONE"
+                        val isSent = entity.userOne.equals(currentUsername, true) && entity.status == "PENDING_SENDER_ONE"
+                        FriendItem(
+                            username = friendName,
+                            status = entity.status,
+                            isPendingReceived = isReceived,
+                            isPendingSent = isSent,
+                            isAccepted = entity.status == "ACCEPTED",
+                            isSearchResult = false
+                        )
+                    }.sortedWith(compareByDescending<FriendItem> { it.isPendingReceived }.thenByDescending { it.isPendingSent })
+
+                    if (items.isEmpty()) {
+                        binding.tvEmptyFriendsMessage.visibility = View.VISIBLE
+                        binding.tvEmptyFriendsMessage.text = "No friends or pending requests yet.\nSearch a trainer username above to send a request!"
+                        binding.rvFriendsList.visibility = View.GONE
+                    } else {
+                        binding.tvEmptyFriendsMessage.visibility = View.GONE
+                        binding.rvFriendsList.visibility = View.VISIBLE
+                    }
+                    friendsAdapter.submitList(items)
+                }
+            }
         }
     }
 
     private fun searchUsers(query: String) {
+        listJob?.cancel()
         if (currentUsername.isBlank()) return
-        lifecycleScope.launch {
-            val foundUsers = socialRepository.searchUsers(query).filter { !it.username.equals(currentUsername, ignoreCase = true) }
-            val existingFriendships = socialRepository.getFriendships(currentUsername)
-
-            val items = foundUsers.map { user ->
-                val existing = existingFriendships.find { it.userOne.equals(user.username, ignoreCase = true) || it.userTwo.equals(user.username, ignoreCase = true) }
-                val isAccepted = existing?.status == "ACCEPTED"
-                val isSent = existing?.userOne == currentUsername && existing?.status == "PENDING_SENDER_ONE"
-                val isReceived = existing?.userTwo == currentUsername && existing?.status == "PENDING_SENDER_ONE"
-
-                FriendItem(
-                    username = user.username,
-                    status = existing?.status ?: "NONE",
-                    isPendingReceived = isReceived,
-                    isPendingSent = isSent,
-                    isAccepted = isAccepted,
-                    isSearchResult = existing == null
-                )
-            }.sortedWith(compareByDescending<FriendItem> { it.isPendingReceived }.thenByDescending { it.isPendingSent })
-
-            if (items.isEmpty()) {
-                binding.tvEmptyFriendsMessage.visibility = View.VISIBLE
-                binding.tvEmptyFriendsMessage.text = "No trainer found matching \"$query\""
-                binding.rvFriendsList.visibility = View.GONE
-            } else {
-                binding.tvEmptyFriendsMessage.visibility = View.GONE
-                binding.rvFriendsList.visibility = View.VISIBLE
+        listJob = lifecycleScope.launch {
+            val foundUsers = try {
+                socialRepository.searchUsers(query).filter { !it.username.equals(currentUsername, ignoreCase = true) }
+            } catch (e: TimeoutCancellationException) {
+                showSearchError("Trainer search timed out. Check your connection.")
+                return@launch
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showSearchError("Could not search trainers: ${e.localizedMessage}")
+                return@launch
             }
-            friendsAdapter.submitList(items)
+            socialRepository.observeFriendships(currentUsername).collect { existingFriendships ->
+
+                val items = foundUsers.map { user ->
+                    val existing = existingFriendships.find { it.userOne.equals(user.username, ignoreCase = true) || it.userTwo.equals(user.username, ignoreCase = true) }
+                    val isAccepted = existing?.status == "ACCEPTED"
+                    val isSent = existing?.userOne.equals(currentUsername, true) && existing?.status == "PENDING_SENDER_ONE"
+                    val isReceived = existing?.userTwo.equals(currentUsername, true) && existing?.status == "PENDING_SENDER_ONE"
+
+                    FriendItem(
+                        username = user.username,
+                        status = existing?.status ?: "NONE",
+                        isPendingReceived = isReceived,
+                        isPendingSent = isSent,
+                        isAccepted = isAccepted,
+                        isSearchResult = existing == null
+                    )
+                }.sortedWith(compareByDescending<FriendItem> { it.isPendingReceived }.thenByDescending { it.isPendingSent })
+
+                if (items.isEmpty()) {
+                    binding.tvEmptyFriendsMessage.visibility = View.VISIBLE
+                    binding.tvEmptyFriendsMessage.text = "No trainer found matching \"$query\""
+                    binding.rvFriendsList.visibility = View.GONE
+                } else {
+                    binding.tvEmptyFriendsMessage.visibility = View.GONE
+                    binding.rvFriendsList.visibility = View.VISIBLE
+                }
+                friendsAdapter.submitList(items)
+            }
         }
+    }
+
+    private fun showSearchError(message: String) {
+        binding.tvEmptyFriendsMessage.visibility = View.VISIBLE
+        binding.tvEmptyFriendsMessage.text = message
+        binding.rvFriendsList.visibility = View.GONE
     }
 }
 

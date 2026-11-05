@@ -18,148 +18,182 @@ import com.pokemon.explorer.data.repository.SocialRepository
 import com.pokemon.explorer.databinding.ActivityTradeSubmissionBinding
 import com.pokemon.explorer.databinding.ItemTradeRequestRowBinding
 import com.pokemon.explorer.state.AppState
+import com.pokemon.explorer.PokemonApplication
+import com.pokemon.explorer.data.CollectionPreferences
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class TradeSubmissionActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityTradeSubmissionBinding
     private val appState: AppState by viewModels()
     private lateinit var socialRepository: SocialRepository
     private lateinit var tradeAdapter: TradeRequestsAdapter
-    private var currentUsername: String = ""
-    private var friendsList = listOf<String>()
-    private var caughtPokemonList = listOf<Int>()
+    private var currentUsername = ""
+    private var currentUid = ""
+    private var friendsList = emptyList<String>()
+    private var caughtPokemonList = emptyList<Int>()
+    private var observationJob: Job? = null
+    private var actionJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityTradeSubmissionBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        socialRepository = SocialRepository(this)
+        socialRepository = (application as PokemonApplication).socialRepository()
         binding.btnBackFromTrade.setOnClickListener { finish() }
 
         tradeAdapter = TradeRequestsAdapter(
             currentUsername = "",
             onAccept = { trade ->
-                lifecycleScope.launch {
-                    val pokeId = trade.offeredPokemonId.toIntOrNull() ?: 1
-                    appState.addCaught(pokeId)
-                    socialRepository.acceptTradeRequest(
-                        tradeId = trade.tradeId,
-                        recipientUsername = currentUsername,
-                        senderUsername = trade.senderUsername,
-                        pokemonId = trade.offeredPokemonId
-                    )
-                    Toast.makeText(this@TradeSubmissionActivity, "Trade accepted! Pokémon #$pokeId added to your collection!", Toast.LENGTH_LONG).show()
-                    loadTradeRequests()
-                }
+                if (trade.tradeStatus == "PENDING") chooseReturnPokemon(trade)
+                else confirmExchange(trade)
             },
             onDecline = { trade ->
-                lifecycleScope.launch {
+                runTradeAction {
                     socialRepository.declineTradeRequest(trade.tradeId)
-                    Toast.makeText(this@TradeSubmissionActivity, "Trade request declined.", Toast.LENGTH_SHORT).show()
-                    loadTradeRequests()
+                    showMessage("Proposal closed.")
                 }
             }
         )
-
         binding.rvIncomingTradeRequests.layoutManager = LinearLayoutManager(this)
         binding.rvIncomingTradeRequests.adapter = tradeAdapter
 
         appState.currentUser.observe(this) { user ->
-            currentUsername = user?.username ?: ""
+            currentUsername = user?.username.orEmpty()
+            currentUid = user?.userId.orEmpty()
             tradeAdapter.updateCurrentUser(currentUsername)
-            loadFriendsAndCollection()
-            loadTradeRequests()
+            observeTrading()
         }
-
-        // Handle pre-selected partner from Intent if any
-        val preselectedPartner = intent.getStringExtra("TRADE_PARTNER")
-        val preselectedPokemonId = intent.getStringExtra("OFFERED_POKEMON_ID")
+        appState.caught.observe(this) { updateCollectionChoices() }
 
         binding.btnSubmitTradeProposal.setOnClickListener {
-            val selectedFriendIndex = binding.spFriendPartner.selectedItemPosition
-            val selectedPokemonIndex = binding.spPokemonOffer.selectedItemPosition
-
-            if (friendsList.isEmpty() || selectedFriendIndex < 0 || selectedFriendIndex >= friendsList.size) {
-                Toast.makeText(this, "Please add a friend first before trading!", Toast.LENGTH_SHORT).show()
+            val friend = friendsList.getOrNull(binding.spFriendPartner.selectedItemPosition)
+            val offered = caughtPokemonList.getOrNull(binding.spPokemonOffer.selectedItemPosition)
+            if (friend == null || offered == null) {
+                showMessage("Choose an accepted friend and an available Pokémon from your collection.")
                 return@setOnClickListener
             }
-            if (caughtPokemonList.isEmpty() || selectedPokemonIndex < 0 || selectedPokemonIndex >= caughtPokemonList.size) {
-                Toast.makeText(this, "You need to catch at least one Pokémon to make a trade!", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+            val note = binding.etOptionalTradeDescription.text.toString().trim()
+            runTradeAction {
+                socialRepository.sendTradeRequest(currentUsername, friend, offered.toString(), note.ifBlank { null })
+                binding.etOptionalTradeDescription.text.clear()
+                showMessage("Proposal sent. Your friend can choose a Pokémon to offer in return.")
             }
+        }
+    }
 
-            val targetFriend = friendsList[selectedFriendIndex]
-            val pokemonIdToOffer = caughtPokemonList[selectedPokemonIndex].toString()
-            val description = binding.etOptionalTradeDescription.text.toString().trim()
-
-            lifecycleScope.launch {
-                val success = socialRepository.sendTradeRequest(
-                    senderUsername = currentUsername,
-                    receiverUsername = targetFriend,
-                    offeredPokemonId = pokemonIdToOffer,
-                    optionalDescription = if (description.isNotBlank()) description else null
-                )
-                if (success) {
-                    Toast.makeText(this@TradeSubmissionActivity, "Trade proposal dispatched to $targetFriend successfully!", Toast.LENGTH_LONG).show()
-                    binding.etOptionalTradeDescription.text.clear()
-                    loadTradeRequests()
-                } else {
-                    Toast.makeText(this@TradeSubmissionActivity, "Failed to send trade proposal.", Toast.LENGTH_SHORT).show()
+    private fun observeTrading() {
+        observationJob?.cancel()
+        if (currentUid.isBlank()) return
+        observationJob = lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    socialRepository.observeFriendships(currentUsername).collect { friendships ->
+                        val selected = friendsList.getOrNull(binding.spFriendPartner.selectedItemPosition)
+                            ?: intent.getStringExtra("TRADE_PARTNER")
+                        friendsList = friendships.filter { it.status == "ACCEPTED" }.map {
+                            if (it.userOne.equals(currentUsername, true)) it.userTwo else it.userOne
+                        }.distinct()
+                        binding.spFriendPartner.adapter = ArrayAdapter(
+                            this@TradeSubmissionActivity, android.R.layout.simple_spinner_dropdown_item,
+                            friendsList.ifEmpty { listOf("No accepted friends available") }
+                        )
+                        val index = friendsList.indexOfFirst { it.equals(selected, true) }
+                        if (index >= 0) binding.spFriendPartner.setSelection(index)
+                    }
+                }
+                launch {
+                    socialRepository.observeTradeRequests().collect { requests ->
+                        tradeAdapter.submitList(requests)
+                        updateCollectionChoices()
+                    }
+                }
+                launch {
+                    socialRepository.tradeSyncError.collect { it?.let { message -> showMessage(message) } }
                 }
             }
         }
     }
 
-    private fun loadFriendsAndCollection() {
-        if (currentUsername.isBlank()) return
-        lifecycleScope.launch {
-            val friendships = socialRepository.getFriendships(currentUsername).filter { it.status == "ACCEPTED" }
-            friendsList = friendships.map { if (it.userOne == currentUsername) it.userTwo else it.userOne }
+    private fun updateCollectionChoices() {
+        if (currentUid.isBlank()) return
+        val selected = caughtPokemonList.getOrNull(binding.spPokemonOffer.selectedItemPosition)
+            ?: intent.getStringExtra("OFFERED_POKEMON_ID")?.toIntOrNull()
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+        caughtPokemonList = CollectionPreferences.caught(prefs, currentUid)
+            .minus(CollectionPreferences.reserved(prefs, currentUid)).sorted()
+        binding.spPokemonOffer.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            caughtPokemonList.map { "Pokémon #$it" }.ifEmpty { listOf("No available Pokémon") }
+        )
+        val index = caughtPokemonList.indexOf(selected)
+        if (index >= 0) binding.spPokemonOffer.setSelection(index)
+    }
 
-            val friendAdapter = ArrayAdapter(
-                this@TradeSubmissionActivity,
-                android.R.layout.simple_spinner_item,
-                if (friendsList.isNotEmpty()) friendsList else listOf("No Accepted Friends Available")
-            )
-            friendAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spFriendPartner.adapter = friendAdapter
-
-            val preselectedPartner = intent.getStringExtra("TRADE_PARTNER")
-            if (!preselectedPartner.isNull_or_empty()) {
-                val index = friendsList.indexOfFirst { it.equals(preselectedPartner, ignoreCase = true) }
-                if (index >= 0) {
-                    binding.spFriendPartner.setSelection(index)
+    private fun chooseReturnPokemon(trade: TradeRequestEntity) {
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+        val choices = CollectionPreferences.caught(prefs, currentUid)
+            .minus(CollectionPreferences.reserved(prefs, currentUid)).sorted()
+        if (choices.isEmpty()) {
+            showMessage("Catch a Pokémon or cancel another proposal before choosing a return offer.")
+            return
+        }
+        var selected = 0
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Offer in return for Pokémon #${trade.offeredPokemonId}")
+            .setSingleChoiceItems(choices.map { "Pokémon #$it" }.toTypedArray(), 0) { _, index -> selected = index }
+            .setPositiveButton("Send return offer") { _, _ ->
+                runTradeAction {
+                    socialRepository.counterTradeRequest(trade.tradeId, choices[selected])
+                    showMessage("Return offer sent. Waiting for ${trade.senderUsername} to confirm.")
                 }
             }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
 
-            // Load caught pokemons
-            val caughtSet = appState.caught.value ?: setOf(25, 1, 6, 7, 4)
-            caughtPokemonList = caughtSet.toList()
-            val pokemonLabels = caughtPokemonList.map { "Pokémon #$it" }
+    private fun confirmExchange(trade: TradeRequestEntity) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Confirm exchange")
+            .setMessage("Exchange your Pokémon #${trade.offeredPokemonId} for ${trade.receiverUsername}'s Pokémon #${trade.returnedPokemonId}?")
+            .setPositiveButton("Exchange") { _, _ ->
+                runTradeAction {
+                    socialRepository.acceptTradeRequest(trade.tradeId)
+                    showMessage("Exchange confirmed. Both collections will update.")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
 
-            val pokeSpinnerAdapter = ArrayAdapter(
-                this@TradeSubmissionActivity,
-                android.R.layout.simple_spinner_item,
-                if (pokemonLabels.isNotEmpty()) pokemonLabels else listOf("No Pokémons Caught")
-            )
-            pokeSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spPokemonOffer.adapter = pokeSpinnerAdapter
+    private fun runTradeAction(action: suspend () -> Unit) {
+        if (actionJob?.isActive == true) return
+        actionJob = lifecycleScope.launch {
+            binding.btnSubmitTradeProposal.isEnabled = false
+            try {
+                action()
+            } catch (e: TimeoutCancellationException) {
+                showMessage("Could not confirm the trade update. Check its status before retrying.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showMessage(e.localizedMessage ?: "Could not update the proposal.")
+            } finally {
+                binding.btnSubmitTradeProposal.isEnabled = true
+            }
         }
     }
 
-    private fun String?.isNull_or_empty(): Boolean = this == null || this.trim().isEmpty()
-
-    private fun loadTradeRequests() {
-        if (currentUsername.isBlank()) return
-        lifecycleScope.launch {
-            val requests = socialRepository.getTradeRequestsForUser(currentUsername)
-            tradeAdapter.submitList(requests)
-        }
+    private fun showMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }
-
 class TradeRequestsAdapter(
     private var currentUsername: String,
     private val onAccept: (TradeRequestEntity) -> Unit,
@@ -191,10 +225,12 @@ class TradeRequestsAdapter(
     inner class TradeViewHolder(private val binding: ItemTradeRequestRowBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(trade: TradeRequestEntity) {
             val isIncoming = trade.receiverUsername.equals(currentUsername, ignoreCase = true)
-            val isPending = trade.tradeStatus == "PENDING"
-            val pokeId = trade.offeredPokemonId.toIntOrNull() ?: 1
+            val canChoose = isIncoming && trade.tradeStatus == "PENDING"
+            val canConfirm = !isIncoming && trade.tradeStatus == "COUNTERED"
+            val isOpen = trade.tradeStatus in listOf("PENDING", "COUNTERED")
+            val pokeId = trade.offeredPokemonId.toIntOrNull()
 
-            binding.ivTradePokemonSprite.load(PokeApi.artworkUrl(pokeId))
+            binding.ivTradePokemonSprite.load(pokeId?.let { PokeApi.artworkUrl(it) })
 
             if (isIncoming) {
                 binding.tvTradeTitle.text = "From: ${trade.senderUsername}"
@@ -202,7 +238,9 @@ class TradeRequestsAdapter(
                 binding.tvTradeTitle.text = "To: ${trade.receiverUsername}"
             }
 
-            binding.tvTradePokemonDetail.text = "Offered: Pokémon #$pokeId"
+            binding.tvTradePokemonDetail.text = if (trade.returnedPokemonId != null) {
+                "Offered Pokémon #$pokeId ↔ Pokémon #${trade.returnedPokemonId}"
+            } else "Offered Pokémon #$pokeId · Awaiting a return offer"
             if (!trade.optionalDescription.isNull_or_blank()) {
                 binding.tvTradeNote.visibility = View.VISIBLE
                 binding.tvTradeNote.text = "Note: ${trade.optionalDescription}"
@@ -210,18 +248,19 @@ class TradeRequestsAdapter(
                 binding.tvTradeNote.visibility = View.GONE
             }
 
-            if (isIncoming && isPending) {
-                binding.tvTradeStatusBadge.visibility = View.GONE
-                binding.btnAcceptTrade.visibility = View.VISIBLE
-                binding.btnDeclineTrade.visibility = View.VISIBLE
-                binding.btnAcceptTrade.setOnClickListener { onAccept(trade) }
-                binding.btnDeclineTrade.setOnClickListener { onDecline(trade) }
-            } else {
-                binding.btnAcceptTrade.visibility = View.GONE
-                binding.btnDeclineTrade.visibility = View.GONE
-                binding.tvTradeStatusBadge.visibility = View.VISIBLE
-                binding.tvTradeStatusBadge.text = "Status: ${trade.tradeStatus}"
+            binding.tvTradeStatusBadge.visibility = View.VISIBLE
+            binding.tvTradeStatusBadge.text = when (trade.tradeStatus) {
+                "PENDING" -> "Waiting for a return offer"
+                "COUNTERED" -> "Waiting for sender confirmation"
+                "ACCEPTED" -> "Exchange completed"
+                else -> "Proposal closed"
             }
+            binding.btnAcceptTrade.visibility = if (canChoose || canConfirm) View.VISIBLE else View.GONE
+            binding.btnAcceptTrade.text = if (canChoose) "Choose Pokémon" else "Confirm exchange"
+            binding.btnAcceptTrade.setOnClickListener { onAccept(trade) }
+            binding.btnDeclineTrade.visibility = if (isOpen) View.VISIBLE else View.GONE
+            binding.btnDeclineTrade.text = if (isIncoming && canChoose) "Decline" else "Cancel proposal"
+            binding.btnDeclineTrade.setOnClickListener { onDecline(trade) }
         }
 
         private fun String?.isNull_or_blank(): Boolean = this == null || this.trim().isEmpty()

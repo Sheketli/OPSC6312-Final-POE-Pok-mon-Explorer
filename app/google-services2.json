@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "113931962319",
+    "firebase_url": "https://pokemonexplorer-a2401-default-rtdb.firebaseio.com",
+    "project_id": "pokemonexplorer-a2401",
+    "storage_bucket": "pokemonexplorer-a2401.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113931962319:android:e46f5df93ab67b2f7974ba",
+        "android_client_info": {
+          "package_name": "com.pokemon.explorer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "113931962319-56nav5jdver9jcot8h9j2lbbtigianql.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pokemon.explorer",
+            "certificate_hash": "4d5e708ef728f67ee9e74bb4a58d6d69d9112418"
+          }
+        },
+        {
+          "client_id": "113931962319-irb7nb433kmcsrsgehv3lmm30q5gdfmm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeu6zoviC5vuGxFg7-NSZmw_6TeOYDgGU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "113931962319-irb7nb433kmcsrsgehv3lmm30q5gdfmm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

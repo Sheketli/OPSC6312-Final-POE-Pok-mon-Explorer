@@ -2,6 +2,8 @@ package com.pokemon.explorer.state
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -11,6 +13,7 @@ import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.ExistingWorkPolicy
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
@@ -22,6 +25,7 @@ import com.pokemon.explorer.data.db.User
 import com.pokemon.explorer.data.repository.AuthRepository
 import com.pokemon.explorer.data.repository.AuthResult
 import com.pokemon.explorer.data.sync.SyncWorker
+import com.pokemon.explorer.data.CollectionPreferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -70,6 +74,12 @@ enum class ThemeSetting(val label: String) {
 class AppState(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    private val collectionPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
+        val key = activeUserKey
+        if (key != null && changed == "caught_$key") {
+            _caught.postValue(CollectionPreferences.caught(prefs, key))
+        }
+    }
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseDatabase.getInstance().reference
 
@@ -139,6 +149,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
         get() = _currentUser.value?.let { user -> user.userId.ifBlank { user.username } }
 
     init {
+        prefs.registerOnSharedPreferenceChangeListener(collectionPreferenceListener)
         com.pokemon.explorer.data.PokeApi.init(application)
         
         val savedUsername = prefs.getString("logged_in_user", null)
@@ -212,6 +223,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 var remoteCaughtList = emptyList<Int>()
+                var remoteRemovedCaught = emptySet<Int>()
+                var remoteAppliedTrades = emptySet<String>()
                 var remoteFavsList = emptyList<Int>()
                 var remoteThemeStr: String? = null
                 var remoteSearchesList = emptyList<String>()
@@ -219,6 +232,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 val snapshot = db.child("users").child(userKey).get().await()
                 if (snapshot.exists()) {
                     remoteCaughtList = snapshot.child("caught").children.mapNotNull { it.getValue(Long::class.java)?.toInt() }
+                    remoteRemovedCaught = snapshot.child("caught_removed").children.mapNotNull { it.getValue(String::class.java)?.toIntOrNull() }.toSet()
+                    remoteAppliedTrades = snapshot.child("applied_trades").children.mapNotNull { it.getValue(String::class.java) }.toSet()
                     remoteFavsList = snapshot.child("favourites").children.mapNotNull { it.getValue(Long::class.java)?.toInt() }
                     remoteThemeStr = snapshot.child("theme").getValue(String::class.java)
                     remoteSearchesList = snapshot.child("recent_searches").children.mapNotNull { it.getValue(String::class.java) }
@@ -285,9 +300,10 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 }
 
                 if (remoteCaughtList.isNotEmpty()) {
-                    val merged = (_caught.value ?: emptySet()) + remoteCaughtList
-                    _caught.value = merged
-                    prefs.edit().putStringSet("caught_$userKey", merged.map { it.toString() }.toSet()).apply()
+                    val merged = CollectionPreferences.mergeRemote(
+                        prefs, userKey, remoteCaughtList.toSet(), remoteRemovedCaught, remoteAppliedTrades
+                    )
+                    if (activeUserKey == userKey) _caught.value = merged
                 }
 
                 if (remoteFavsList.isNotEmpty()) {
@@ -371,29 +387,38 @@ class AppState(application: Application) : AndroidViewModel(application) {
 
     fun toggleCaught(id: Int) {
         val key = activeUserKey ?: return
-        val current = _caught.value ?: emptySet()
+        if (id in CollectionPreferences.reserved(prefs, key)) {
+            Toast.makeText(getApplication(), "Complete or cancel the trade reserving this Pokémon first.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val current = CollectionPreferences.caught(prefs, key)
         val updated = current.toggle(id)
         _caught.value = updated
-        prefs.edit().putStringSet("caught_$key", updated.map { it.toString() }.toSet()).apply()
+        CollectionPreferences.update(prefs, key, updated)
         syncToFirebase("caught", updated.toList())
     }
 
     fun addCaught(id: Int) {
         val key = activeUserKey ?: return
-        val current = _caught.value ?: emptySet()
+        val current = CollectionPreferences.caught(prefs, key)
         if (!current.contains(id)) {
             val updated = current + id
             _caught.value = updated
-            prefs.edit().putStringSet("caught_$key", updated.map { it.toString() }.toSet()).apply()
+            CollectionPreferences.update(prefs, key, updated)
             syncToFirebase("caught", updated.toList())
         }
     }
 
     fun resetCollection() {
         val key = activeUserKey ?: return
+        if (CollectionPreferences.reserved(prefs, key).isNotEmpty()) {
+            Toast.makeText(getApplication(), "Complete or cancel pending trades before resetting your collection.", Toast.LENGTH_LONG).show()
+            return
+        }
         _favourites.value = emptySet()
         _caught.value = emptySet()
-        prefs.edit().remove("favourites_$key").remove("caught_$key").apply()
+        prefs.edit().remove("favourites_$key").apply()
+        CollectionPreferences.update(prefs, key, emptySet())
         syncToFirebase("favourites", emptyList<Int>())
         syncToFirebase("caught", emptyList<Int>())
     }
@@ -556,6 +581,9 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     val key = user.userId.ifBlank { user.username }
                     prefs.edit()
                         .remove("caught_$key")
+                        .remove("caught_removed_$key")
+                        .remove("applied_trades_$key")
+                        .remove("trade_reserved_$key")
                         .remove("favourites_$key")
                         .remove("theme_$key")
                         .remove("recent_searches_csv_$key")
@@ -586,11 +614,11 @@ class AppState(application: Application) : AndroidViewModel(application) {
     fun catchPokemon(id: Int) {
         val user = _currentUser.value ?: return
         val key = user.userId.ifBlank { user.username }
-        val currentCaught = _caught.value ?: emptySet()
+        val currentCaught = CollectionPreferences.caught(prefs, key)
         val newCaught = currentCaught + id
         
         _caught.value = newCaught
-        prefs.edit().putStringSet("caught_$key", newCaught.map { it.toString() }.toSet()).apply()
+        CollectionPreferences.update(prefs, key, newCaught)
         
         val currentFavourites = _favourites.value ?: emptySet()
         if (!currentFavourites.contains(id)) {
@@ -631,9 +659,10 @@ class AppState(application: Application) : AndroidViewModel(application) {
     }
 
     private fun syncToFirebase(key: String, value: Any) {
+        val owner = activeUserKey.orEmpty()
         viewModelScope.launch {
             val database = AppDatabase.getDatabase(getApplication())
-            database.syncActionDao().insertAction(SyncAction(type = key, payload = ""))
+            database.syncActionDao().insertAction(SyncAction(type = key, payload = if (key == "caught") owner else ""))
             
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -643,7 +672,14 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 .setConstraints(constraints)
                 .build()
                 
-            WorkManager.getInstance(getApplication()).enqueue(syncRequest)
+            WorkManager.getInstance(getApplication()).enqueueUniqueWork(
+                "user-data-sync", ExistingWorkPolicy.APPEND_OR_REPLACE, syncRequest
+            )
         }
+    }
+
+    override fun onCleared() {
+        prefs.unregisterOnSharedPreferenceChangeListener(collectionPreferenceListener)
+        super.onCleared()
     }
 }

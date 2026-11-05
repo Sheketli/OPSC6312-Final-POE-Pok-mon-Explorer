@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -16,7 +18,7 @@ import androidx.room.RoomDatabase
         MessageEntity::class,
         TradeRequestEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,7 +41,13 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "pokemon_explorer_db"
-                ).fallbackToDestructiveMigration(true).build()
+                ).addMigrations(object : Migration(9, 10) {
+                    override fun migrate(db: SupportSQLiteDatabase) {
+                        db.execSQL("ALTER TABLE trade_requests ADD COLUMN returnedPokemonId TEXT")
+                        db.execSQL("ALTER TABLE trade_requests ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0")
+                        db.execSQL("ALTER TABLE trade_requests ADD COLUMN completedAt INTEGER NOT NULL DEFAULT 0")
+                    }
+                }).fallbackToDestructiveMigration(true).build()
                 INSTANCE = instance
                 instance
             }
