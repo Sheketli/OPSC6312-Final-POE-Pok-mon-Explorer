@@ -1,4 +1,4 @@
-# Pokémon Explorer 🔴⚡
+# Pokémon Explore 😺⚡
 
 [![Android CI](https://github.com/Sheketli/OPSC6312-Final-POE-Pok-mon-Explorer/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Sheketli/OPSC6312-Final-POE-Pok-mon-Explorer/actions/workflows/android-ci.yml)
 [![Kotlin Version](https://img.shields.io/badge/Kotlin-2.0.20-blue.svg)](https://kotlinlang.org/)
