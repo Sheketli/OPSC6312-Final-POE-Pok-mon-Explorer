@@ -86,6 +86,20 @@ class AccountManagementFragment : Fragment() {
             binding.etPassword.text?.clear()
             binding.etConfirmPassword.text?.clear()
         }
+
+        binding.btnDeleteAccount.setOnClickListener {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Delete Account")
+                .setMessage("Are you sure you want to delete your account? This action is permanent and will permanently erase all your caught Pokémons, favourites, notes, and account data.")
+                .setPositiveButton("Delete Account") { dialog, _ ->
+                    appState.deleteAccount()
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
+        }
     }
 
     override fun onDestroyView() {

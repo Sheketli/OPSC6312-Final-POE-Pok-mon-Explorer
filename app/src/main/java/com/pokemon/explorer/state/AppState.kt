@@ -543,6 +543,35 @@ class AppState(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteAccount() {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            _authError.value = null
+            _authSuccess.value = null
+            when (val result = authRepository.deleteAccount()) {
+                is AuthResult.Success -> {
+                    val database = AppDatabase.getDatabase(getApplication())
+                    database.pokemonNoteDao().deleteAllNotesForUser(user.username, user.userId)
+
+                    val key = user.userId.ifBlank { user.username }
+                    prefs.edit()
+                        .remove("caught_$key")
+                        .remove("favourites_$key")
+                        .remove("theme_$key")
+                        .remove("recent_searches_csv_$key")
+                        .remove("logged_in_user")
+                        .remove("logged_in_user_id")
+                        .apply()
+
+                    logout()
+                }
+                is AuthResult.Error -> {
+                    _authError.value = result.message
+                }
+            }
+        }
+    }
+
     fun logout() {
         prefs.edit().remove("logged_in_user").remove("logged_in_user_id").apply()
         setCurrentUser(null)

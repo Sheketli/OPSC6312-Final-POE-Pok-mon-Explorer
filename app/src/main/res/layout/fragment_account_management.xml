@@ -167,9 +167,22 @@
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
+                android:layout_marginBottom="32dp"
                 android:text="@string/ui_update_password"
-                android:textColor="@color/poke_red"
-                app:strokeColor="@color/poke_red" />
+                android:textColor="@color/text_high"
+                app:strokeColor="@color/border_10" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_delete_account"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:backgroundTint="@color/poke_red"
+                android:text="Delete Account"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:cornerRadius="12dp" />
 
         </LinearLayout>
     </LinearLayout>

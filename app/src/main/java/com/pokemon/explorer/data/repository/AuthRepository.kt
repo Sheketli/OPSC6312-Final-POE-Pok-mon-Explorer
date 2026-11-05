@@ -185,4 +185,29 @@ class AuthRepository(private val userDao: UserDao) {
             AuthResult.Error(e.localizedMessage ?: "Failed to update username")
         }
     }
+
+    suspend fun deleteAccount(): AuthResult {
+        return try {
+            val firebaseUser = auth.currentUser ?: return AuthResult.Error("No user logged in")
+            val uid = firebaseUser.uid
+
+            // Fetch username
+            val snapshot = db.child("users").child(uid).get().runCatching { await() }.getOrNull()
+            val dbUsername = snapshot?.child("username")?.getValue(String::class.java) ?: firebaseUser.displayName ?: ""
+
+            // Delete from Firebase RTDB & Firestore
+            try { db.child("users").child(uid).removeValue().await() } catch (_: Exception) {}
+            try { com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(uid).delete().await() } catch (_: Exception) {}
+
+            // Delete from Local Room DB
+            userDao.deleteUser(dbUsername, uid)
+
+            // Delete Firebase Auth Account
+            firebaseUser.delete().await()
+
+            AuthResult.Success(User(username = dbUsername, userId = uid, email = "", passwordHash = ""))
+        } catch (e: Exception) {
+            AuthResult.Error(e.localizedMessage ?: "Failed to delete account")
+        }
+    }
 }

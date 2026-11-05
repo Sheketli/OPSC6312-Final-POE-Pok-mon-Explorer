@@ -18,4 +18,7 @@ interface PokemonNoteDao {
     
     @Query("DELETE FROM pokemon_notes WHERE username = :username AND pokemonId = :pokemonId")
     suspend fun deleteNote(username: String, pokemonId: Int)
+
+    @Query("DELETE FROM pokemon_notes WHERE username = :username OR userId = :userId")
+    suspend fun deleteAllNotesForUser(username: String, userId: String)
 }
