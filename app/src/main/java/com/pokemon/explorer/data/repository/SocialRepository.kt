@@ -246,7 +246,7 @@ class SocialRepository(private val context: Context) {
                     prefs, uid, trades,
                     if (profile.hasChild("caught")) profile.child("caught").children.mapNotNull {
                         it.getValue(Long::class.java)?.toInt()
-                    }.toSet() else null,
+                    }.toSet() else emptySet(),
                     profile.child("caught_removed").children.mapNotNull { it.getValue(String::class.java)?.toIntOrNull() }.toSet(),
                     profile.child("applied_trades").children.mapNotNull { it.getValue(String::class.java) }.toSet()
                 )
