@@ -185,6 +185,14 @@ gradle testDebugUnitTest
 
 ---
 
+### Video Presentation of Pokémon Explorer
+
+- **YouTube Link**: https://youtu.be/gwHRugUzI4w
+
+- **Alternative Video Presentation Link**: https://advtechonline-my.sharepoint.com/:v:/r/personal/st10439690_rcconnect_edu_za/_layouts/15/stream.aspx?id=%2Fpersonal%2Fst10439690_rcconnect_edu_za%2FDocuments%2FPok%C3%A9mon%20Explorer%20Video%20Presentation.mp4&share=cQowrHZOReHhQI-q5ht-YPNvEgUCgcjZQ2Z4xJbBPIQbddLM6g&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0
+
+---
+
 ## 📜 Attribution & Legal Disclaimer
 
 - **Data Source**: Pokémon statistics, abilities, moves, and flavor text provided by [PokéAPI](https://pokeapi.co).
