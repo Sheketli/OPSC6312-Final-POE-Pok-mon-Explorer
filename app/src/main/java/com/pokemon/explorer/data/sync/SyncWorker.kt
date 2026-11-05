@@ -8,6 +8,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.pokemon.explorer.data.db.AppDatabase
 import com.pokemon.explorer.data.CollectionPreferences
+import com.pokemon.explorer.data.ThemePreferences
 import kotlinx.coroutines.tasks.await
 
 class SyncWorker(
@@ -37,7 +38,7 @@ class SyncWorker(
             val processedTypes = mutableSetOf<String>()
 
             for (action in actions) {
-                if (action.type == "caught" && action.payload.isNotBlank() && action.payload != uid) continue
+                if (action.type in listOf("caught", "theme") && action.payload.isNotBlank() && action.payload != uid) continue
                 if (!processedTypes.contains(action.type)) {
                     processedTypes.add(action.type)
                     when (action.type) {
@@ -68,8 +69,18 @@ class SyncWorker(
                             }
                         }
                         "theme" -> {
-                            val theme = prefs.getString("theme_$userKey", "System") ?: "System"
-                            rtdb.child("users").child(uid).child("theme").setValue(theme).await()
+                            val pending = ThemePreferences.pending(prefs, uid)
+                                ?: if (action.payload.isBlank()) ThemePreferences.preserveLegacyPending(prefs, uid) else null
+                            if (pending == null) {
+                                syncDao.deleteAction(action)
+                                continue
+                            }
+                            val theme = pending.theme.name
+                            rtdb.child("users").child(uid).updateChildren(mapOf(
+                                "theme" to theme,
+                                "theme_revision" to pending.revision
+                            )).await()
+                            ThemePreferences.confirm(prefs, uid, pending.revision)
                             try {
                                 firestore.collection("users").document(uid).update("theme", theme).await()
                             } catch (_: Exception) {

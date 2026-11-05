@@ -46,6 +46,7 @@ class TradeSubmissionActivity : AppCompatActivity() {
         binding = ActivityTradeSubmissionBinding.inflate(layoutInflater)
         setContentView(binding.root)
         socialRepository = (application as PokemonApplication).socialRepository()
+        configureSocialRefresh(binding.swipeRefresh, socialRepository) { updateCollectionChoices() }
         binding.btnBackFromTrade.setOnClickListener { finish() }
 
         tradeAdapter = TradeRequestsAdapter(

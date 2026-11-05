@@ -44,4 +44,10 @@
     <color name="type_dark">#705746</color>
     <color name="type_steel">#B7B7CE</color>
     <color name="type_fairy">#D685AD</color>
+    <color name="social_danger">#FF8A80</color>
+    <color name="social_accent">#D1A7F2</color>
+    <color name="social_sender">#90DFCE</color>
+    <color name="social_card">#171D31</color>
+    <color name="chat_received">#1D253B</color>
+    <color name="chat_sent">#173A35</color>
 </resources>

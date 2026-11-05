@@ -42,6 +42,11 @@ class FriendsActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         socialRepository = (application as PokemonApplication).socialRepository()
+        configureSocialRefresh(binding.swipeRefresh, socialRepository) {
+            val query = binding.etFriendSearchInput.text.toString().trim()
+            if (query.isBlank()) loadFriends() else searchUsers(query)
+        }
+        binding.swipeRefresh.setOnChildScrollUpCallback { _, _ -> binding.rvFriendsList.canScrollVertically(-1) }
 
         binding.btnBackFromFriends.setOnClickListener { finish() }
 

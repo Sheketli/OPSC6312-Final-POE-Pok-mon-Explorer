@@ -1,6 +1,7 @@
 package com.pokemon.explorer.ui
 
-import android.graphics.Color
+import androidx.core.content.ContextCompat
+import com.pokemon.explorer.R
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -47,6 +48,7 @@ class ChatActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         socialRepository = (application as PokemonApplication).socialRepository()
+        configureSocialRefresh(binding.swipeRefresh, socialRepository)
         targetFriendUsername = intent.getStringExtra("TARGET_FRIEND").orEmpty()
 
         binding.tvChatHeaderName.text = targetFriendUsername
@@ -152,14 +154,14 @@ class ChatAdapter(private var currentUser: String) : RecyclerView.Adapter<ChatAd
                 params.gravity = Gravity.END
                 params.setMargins(100, 4, 12, 4)
                 binding.cardBubble.layoutParams = params
-                binding.cardBubble.setCardBackgroundColor(Color.parseColor("#E2FFC7"))
+                binding.cardBubble.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.chat_sent))
                 binding.tvSenderName.visibility = View.GONE
             } else {
                 binding.llMessageContainer.gravity = Gravity.START
                 params.gravity = Gravity.START
                 params.setMargins(12, 4, 100, 4)
                 binding.cardBubble.layoutParams = params
-                binding.cardBubble.setCardBackgroundColor(Color.WHITE)
+                binding.cardBubble.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.chat_received))
                 binding.tvSenderName.visibility = View.VISIBLE
                 binding.tvSenderName.text = msg.senderUsername
             }

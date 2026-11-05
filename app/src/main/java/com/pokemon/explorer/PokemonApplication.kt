@@ -8,8 +8,10 @@ import coil.memory.MemoryCache
 import com.pokemon.explorer.worker.RareSpawnWorker
 import com.google.firebase.auth.FirebaseAuth
 import com.pokemon.explorer.data.repository.SocialRepository
+import com.pokemon.explorer.state.ThemeController
 
 class PokemonApplication : Application(), ImageLoaderFactory {
+    val themeController by lazy { ThemeController(this) }
     private var socialAccountId: String? = null
     private var socialSession: SocialRepository? = null
 
@@ -26,6 +28,7 @@ class PokemonApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        themeController.start()
         FirebaseAuth.getInstance().addAuthStateListener {
             socialRepository()
         }

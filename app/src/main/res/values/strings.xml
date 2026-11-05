@@ -163,4 +163,13 @@
     <string name="comparison_draw">Predicted battle result · Draw</string>
     <string name="comparison_unavailable">Battle prediction needs complete stats and known Pokémon types.</string>
     <string name="comparison_load_error">Could not load the comparison. Check your connection and try again.</string>
+    <string name="friend_request_notification">%1$s sent you a friend request</string>
+    <string name="friend_request_notification_body">Open Friends to accept or decline.</string>
+    <string name="friend_accepted_notification">%1$s accepted your friend request</string>
+    <string name="friend_accepted_notification_body">You can now message and trade with %1$s.</string>
+    <string name="trade_request_notification">%1$s sent a trade proposal</string>
+    <string name="trade_return_notification">%1$s sent a return offer</string>
+    <string name="trade_completed_notification">Exchange completed with %1$s</string>
+    <string name="trade_request_notification_body">Offering Pokémon #%1$s. Open Trading to respond.</string>
+    <string name="trade_exchange_notification_body">Pokémon #%1$s ↔ Pokémon #%2$s. Open Trading for details.</string>
 </resources>

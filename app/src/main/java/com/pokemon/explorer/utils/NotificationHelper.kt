@@ -93,6 +93,7 @@ object NotificationHelper {
             .setSmallIcon(R.drawable.ic_pokeball)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

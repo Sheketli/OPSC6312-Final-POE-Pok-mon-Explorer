@@ -12,6 +12,7 @@ import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.Query
 import com.pokemon.explorer.data.db.AppDatabase
+import com.pokemon.explorer.R
 import com.pokemon.explorer.data.db.FriendshipEntity
 import com.pokemon.explorer.data.db.MessageEntity
 import com.pokemon.explorer.data.db.TradeRequestEntity
@@ -40,6 +41,9 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 class SocialRepository(private val context: Context) {
 
@@ -66,6 +70,20 @@ class SocialRepository(private val context: Context) {
     fun close() {
         listeners.forEach { (reference, listener) -> reference.removeEventListener(listener) }
         scope.cancel()
+    }
+
+    suspend fun refresh() = withTimeout(15_000) {
+        require(FirebaseAuth.getInstance().currentUser != null) { "Sign in online to refresh." }
+        coroutineScope {
+            listeners.map { (query, listener) ->
+                async {
+                    // Reattach listeners that Firebase may have cancelled after a permissions error.
+                    query.removeEventListener(listener)
+                    query.addValueEventListener(listener)
+                    query.get().await()
+                }
+            }.awaitAll()
+        }
     }
 
     init {
@@ -128,10 +146,11 @@ class SocialRepository(private val context: Context) {
                                     if (status == "PENDING_SENDER_ONE" && (existing == null || existing.status != "PENDING_SENDER_ONE")) {
                                         NotificationHelper.sendSocialNotification(
                                             context,
-                                            title = "New Friend Request!",
-                                            body = "$u1 sent you a friend request via their Explorer Account.",
-                                            notificationId = 4001,
-                                            targetScreen = "friends"
+                                            title = context.getString(R.string.friend_request_notification, u1),
+                                            body = context.getString(R.string.friend_request_notification_body),
+                                            notificationId = "friend-request:${u1Id.ifBlank { u1 }}".hashCode(),
+                                            targetScreen = "friends",
+                                            extraData = u1
                                         )
                                     }
                                 }
@@ -141,9 +160,9 @@ class SocialRepository(private val context: Context) {
                                     if (status == "ACCEPTED" && existing != null && existing.status == "PENDING_SENDER_ONE") {
                                         NotificationHelper.sendSocialNotification(
                                             context,
-                                            title = "Friend Request Accepted!",
-                                            body = "$u2 accepted your friend request. You can now trade and chat!",
-                                            notificationId = 4002,
+                                            title = context.getString(R.string.friend_accepted_notification, u2),
+                                            body = context.getString(R.string.friend_accepted_notification_body, u2),
+                                            notificationId = "friend-accepted:${u2Id.ifBlank { u2 }}".hashCode(),
                                             targetScreen = "friends"
                                         )
                                     }
@@ -253,9 +272,17 @@ class SocialRepository(private val context: Context) {
                         val incoming = trade.receiverUserId == uid
                         if ((incoming && trade.tradeStatus == "PENDING") ||
                             (!incoming && trade.tradeStatus == "COUNTERED") || trade.tradeStatus == "ACCEPTED") {
+                            val otherName = if (incoming) trade.senderUsername else trade.receiverUsername
+                            val title = when (trade.tradeStatus) {
+                                "PENDING" -> context.getString(R.string.trade_request_notification, trade.senderUsername)
+                                "COUNTERED" -> context.getString(R.string.trade_return_notification, trade.receiverUsername)
+                                else -> context.getString(R.string.trade_completed_notification, otherName)
+                            }
+                            val body = if (trade.returnedPokemonId == null)
+                                context.getString(R.string.trade_request_notification_body, trade.offeredPokemonId)
+                            else context.getString(R.string.trade_exchange_notification_body, trade.offeredPokemonId, trade.returnedPokemonId)
                             NotificationHelper.sendSocialNotification(
-                                context, if (trade.tradeStatus == "ACCEPTED") "Exchange completed" else "Trade proposal updated",
-                                "Open Trading to view the exchange with ${if (incoming) trade.senderUsername else trade.receiverUsername}.",
+                                context, title, body,
                                 trade.tradeId.hashCode(), "trade"
                             )
                         }

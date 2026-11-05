@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F6F8">
+    android:background="@color/app_background">
 
     <!-- Header Toolbar -->
     <LinearLayout
@@ -23,14 +23,14 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Back"
             android:src="@drawable/ic_back"
-            app:tint="#000000" />
+            app:tint="@color/text_high" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:text="Friends Portal"
-            android:textColor="#000000"
+            android:textColor="@color/text_high"
             android:textSize="20sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -69,29 +69,34 @@
             app:cornerRadius="6dp" />
     </LinearLayout>
 
-    <!-- Empty State -->
-    <TextView
-        android:id="@+id/tvEmptyFriendsMessage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="24dp"
-        android:text="No friends or pending requests yet.\nSearch a trainer username above to send a request!"
-        android:textColor="#757575"
-        android:textSize="14sp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/llSearchWrapper" />
-
-    <!-- Scrollable Active Friends & Pending Requests Directory -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvFriendsList"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/llSearchWrapper" />
+        app:layout_constraintTop_toBottomOf="@id/llSearchWrapper"
+        app:layout_constraintBottom_toBottomOf="parent">
 
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvFriendsList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="8dp"
+                android:clipToPadding="false" />
+
+            <TextView
+                android:id="@+id/tvEmptyFriendsMessage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="24dp"
+                android:text="No friends or pending requests yet.\nSearch a trainer username above to send a request!"
+                android:textColor="@color/text_low"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </FrameLayout>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

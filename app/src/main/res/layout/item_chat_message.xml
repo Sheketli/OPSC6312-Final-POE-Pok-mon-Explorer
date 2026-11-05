@@ -26,7 +26,7 @@
                 android:id="@+id/tvSenderName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#075E54"
+                android:textColor="@color/social_sender"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -36,7 +36,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textColor="#000000"
+                android:textColor="@color/text_high"
                 android:textSize="15sp" />
 
             <TextView
@@ -45,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
                 android:layout_marginTop="4dp"
-                android:textColor="#757575"
+                android:textColor="@color/text_low"
                 android:textSize="11sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

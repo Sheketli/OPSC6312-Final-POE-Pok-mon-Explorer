@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -26,6 +25,7 @@ import com.pokemon.explorer.data.repository.AuthRepository
 import com.pokemon.explorer.data.repository.AuthResult
 import com.pokemon.explorer.data.sync.SyncWorker
 import com.pokemon.explorer.data.CollectionPreferences
+import com.pokemon.explorer.data.ThemePreferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -78,6 +78,8 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val key = activeUserKey
         if (key != null && changed == "caught_$key") {
             _caught.postValue(CollectionPreferences.caught(prefs, key))
+        } else if (key != null && changed == "theme_$key") {
+            _theme.postValue(ThemePreferences.read(prefs, key))
         }
     }
     private val auth = FirebaseAuth.getInstance()
@@ -214,7 +216,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
         val savedThemeName = prefs.getString("theme_$userKey", ThemeSetting.System.name)
         val savedTheme = ThemeSetting.entries.find { it.name == savedThemeName } ?: ThemeSetting.System
         _theme.value = savedTheme
-        applyTheme(savedTheme)
 
         // Load recent searches
         _recentSearches.value = prefs.getString("recent_searches_csv_$userKey", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
@@ -226,7 +227,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
                 var remoteRemovedCaught = emptySet<Int>()
                 var remoteAppliedTrades = emptySet<String>()
                 var remoteFavsList = emptyList<Int>()
-                var remoteThemeStr: String? = null
                 var remoteSearchesList = emptyList<String>()
 
                 val snapshot = db.child("users").child(userKey).get().await()
@@ -235,7 +235,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     remoteRemovedCaught = snapshot.child("caught_removed").children.mapNotNull { it.getValue(String::class.java)?.toIntOrNull() }.toSet()
                     remoteAppliedTrades = snapshot.child("applied_trades").children.mapNotNull { it.getValue(String::class.java) }.toSet()
                     remoteFavsList = snapshot.child("favourites").children.mapNotNull { it.getValue(Long::class.java)?.toInt() }
-                    remoteThemeStr = snapshot.child("theme").getValue(String::class.java)
                     remoteSearchesList = snapshot.child("recent_searches").children.mapNotNull { it.getValue(String::class.java) }
 
                     snapshot.child("search_history_enabled").getValue(Boolean::class.java)?.let {
@@ -310,13 +309,6 @@ class AppState(application: Application) : AndroidViewModel(application) {
                     val merged = (_favourites.value ?: emptySet()) + remoteFavsList
                     _favourites.value = merged
                     prefs.edit().putStringSet("favourites_$userKey", merged.map { it.toString() }.toSet()).apply()
-                }
-
-                if (!remoteThemeStr.isNull_or_blank()) {
-                    val themeSetting = ThemeSetting.entries.find { it.name == remoteThemeStr } ?: ThemeSetting.System
-                    _theme.value = themeSetting
-                    prefs.edit().putString("theme_$userKey", themeSetting.name).apply()
-                    applyTheme(themeSetting)
                 }
 
                 if (remoteSearchesList.isNotEmpty()) {
@@ -423,23 +415,9 @@ class AppState(application: Application) : AndroidViewModel(application) {
         syncToFirebase("caught", emptyList<Int>())
     }
 
-    fun applyTheme(value: ThemeSetting) {
-        val mode = when (value) {
-            ThemeSetting.Light -> AppCompatDelegate.MODE_NIGHT_NO
-            ThemeSetting.Dark -> AppCompatDelegate.MODE_NIGHT_YES
-            ThemeSetting.System -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-        }
-        AppCompatDelegate.setDefaultNightMode(mode)
-    }
-
     fun selectTheme(value: ThemeSetting) {
-        val key = activeUserKey
         _theme.value = value
-        if (key != null) {
-            prefs.edit().putString("theme_$key", value.name).apply()
-        }
-        applyTheme(value)
-        syncToFirebase("theme", value.name)
+        getApplication<com.pokemon.explorer.PokemonApplication>().themeController.select(activeUserKey, value)
     }
 
     fun updateSearchHistoryEnabled(enabled: Boolean) {
@@ -586,6 +564,7 @@ class AppState(application: Application) : AndroidViewModel(application) {
                         .remove("trade_reserved_$key")
                         .remove("favourites_$key")
                         .remove("theme_$key")
+                        .remove("theme_pending_$key")
                         .remove("recent_searches_csv_$key")
                         .remove("logged_in_user")
                         .remove("logged_in_user_id")

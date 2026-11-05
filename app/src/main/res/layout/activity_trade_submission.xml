@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/swipeRefresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F4F6F8"
+    android:background="@color/app_background"
     android:fillViewport="true">
 
     <LinearLayout
@@ -26,14 +31,14 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:src="@drawable/ic_back"
-                app:tint="#000000" />
+                app:tint="@color/text_high" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:text="Trade Portal"
-                android:textColor="#000000"
+                android:textColor="@color/text_high"
                 android:textSize="20sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -43,7 +48,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#FFFFFF"
+            app:cardBackgroundColor="@color/social_card"
             app:cardCornerRadius="16dp"
             app:cardElevation="2dp"
             app:strokeColor="#8A2BE2"
@@ -59,7 +64,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Propose a Trade"
-                    android:textColor="#8A2BE2"
+                    android:textColor="@color/social_accent"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -68,7 +73,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Select a friend and a Pokémon from your collection to send a trade offer."
-                    android:textColor="#757575"
+                    android:textColor="@color/text_low"
                     android:textSize="12sp" />
 
                 <!-- Select Friend -->
@@ -77,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:text="Select Friend:"
-                    android:textColor="#000000"
+                    android:textColor="@color/text_high"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -95,7 +100,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:text="Select Pokémon to Offer:"
-                    android:textColor="#000000"
+                    android:textColor="@color/text_high"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -113,7 +118,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:text="Optional Description / Notes:"
-                    android:textColor="#000000"
+                    android:textColor="@color/text_high"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -150,7 +155,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="Trade Proposals History"
-            android:textColor="#000000"
+            android:textColor="@color/text_high"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -163,3 +168,4 @@
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
