@@ -57,7 +57,7 @@ class UINavigationIntegrationTest {
         val detailFragment = DetailFragment.newInstance(25)
         val args = detailFragment.arguments
         assertNotNull("Arguments bundle should not be null", args)
-        assertEquals(25, args?.getInt("pokemon_id"))
+        assertEquals( 25, args?.getInt("pokemon_id"))
     }
 
     @Test
