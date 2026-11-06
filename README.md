@@ -198,3 +198,27 @@ gradle testDebugUnitTest
 - **Data Source**: Pokémon statistics, abilities, moves, and flavor text provided by [PokéAPI](https://pokeapi.co).
 - **Artwork & Sprites**: Official Pokémon artwork provided by the [PokeAPI Sprites](https://github.com/PokeAPI/sprites) repository.
 - **Trademarks**: Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc., and GAME FREAK inc. This software is an educational, non-commercial fan project and is not affiliated with or endorsed by Nintendo or The Pokémon Company .
+
+---
+
+# AI Tool Usage Disclosure
+
+I used OpenAI Codex as a development assistant while working on my Pokémon Explorer Android application. The app uses Kotlin and XML layouts. AI assistance supported specific implementation tasks, debugging, configuration checks, and suggestions for improvements. 
+
+Figma was also used for frontend design, supporting the visual appearance and screen layouts. It served as a design tool, while the Android interface was implemented using Kotlin and XML layouts.
+
+One main use was implementing multilingual support. Codex helped move interface text from layouts and Kotlin files into Android string resources. It created initial translation resources for Sesotho, isiZulu, isiXhosa, and Setswana alongside English. It also helped implement a language selector in Settings and configure persistence so the selected language could remain active after reopening the app. The translations are initial drafts and still require review by fluent speakers. Pokémon descriptions supplied by the external API remain in English.
+
+AI was also used to investigate coding errors. After multilingual changes, Android Studio displayed unresolved references to the generated resource class in SearchFragment. Codex inspected the file, identified the missing import, and added the appropriate resource import. This allowed the search result messages to reference the translated strings correctly. Resource compilation and checks for matching translation keys and formatting placeholders were also performed during development.
+
+Another use involved reviewing a failed GitHub Actions workflow. Codex examined the workflow and retrieved the build diagnostics. The reported failure concerned a missing language configuration resource referenced by the Android manifest. A later workflow run passed the build, unit tests, and APK upload. This helped distinguish a missing project file from a problem with the workflow itself.
+
+Google authentication was another troubleshooting task. Codex reviewed the Login and Register flows and compared the signing certificate of the local debug APK with the Firebase configuration. The fingerprints differed. I added the relevant fingerprint in Firebase, downloaded the updated configuration file, and confirmed that Google sign-in worked. Separately signed APKs require their own configuration checks.
+
+Finally, AI suggested improvements such as clearer loading errors, safer database updates, broader testing, and possible multiplayer features. These suggestions were discussed, but they were not all implemented. AI assistance and its limitations are acknowledged here, including the need to verify generated code, translations, and specific technical configuration advice.
+
+## Reference
+
+OpenAI Codex, AI coding assistant, used during development in November 2026.
+
+Figma, frontend design tool, used during development in November 2026.
