@@ -6,6 +6,8 @@ import com.google.firebase.database.FirebaseDatabase
 import com.pokemon.explorer.data.db.User
 import com.pokemon.explorer.data.db.UserDao
 import com.pokemon.explorer.security.PasswordHasher
+import com.pokemon.explorer.utils.AuthValidator
+import com.pokemon.explorer.utils.ValidationResult
 import kotlinx.coroutines.tasks.await
 
 /** Represents authentication operation results. */
@@ -44,9 +46,10 @@ class AuthRepository(private val userDao: UserDao) {
      */
     suspend fun register(username: String, email: String, password: String): AuthResult {
         Log.i(TAG, "register: Attempting user registration for username=$username, email=$email")
-        if (username.isBlank() || email.isBlank() || password.isBlank()) {
-            Log.w(TAG, "register: Validation failed - credentials cannot be blank.")
-            return AuthResult.Error("Username, email and password cannot be empty")
+        val validation = AuthValidator.validateRegistration(username, email, password, password)
+        if (validation is ValidationResult.Error) {
+            Log.w(TAG, "register: Validation failed - ${validation.message}")
+            return AuthResult.Error(validation.message)
         }
 
         return try {
@@ -92,6 +95,11 @@ class AuthRepository(private val userDao: UserDao) {
      */
     suspend fun login(email: String, password: String): AuthResult {
         Log.i(TAG, "login: Attempting sign-in for email=$email")
+        val validation = AuthValidator.validateLogin(email, password)
+        if (validation is ValidationResult.Error) {
+            Log.w(TAG, "login: Validation failed - ${validation.message}")
+            return AuthResult.Error(validation.message)
+        }
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
             val firebaseUser = authResult.user

@@ -19,6 +19,9 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
+import com.pokemon.explorer.utils.AuthValidator
+import com.pokemon.explorer.utils.ValidationResult
+
 class RegisterFragment : Fragment() {
 
     private var _binding: FragmentRegisterBinding? = null
@@ -43,15 +46,10 @@ class RegisterFragment : Fragment() {
             val password = binding.etPassword.text?.toString().orEmpty()
             val confirm = binding.etConfirmPassword.text?.toString().orEmpty()
 
-            if (password != confirm) {
+            val validation = AuthValidator.validateRegistration(username, email, password, confirm)
+            if (validation is ValidationResult.Error) {
                 binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = getString(R.string.ui_passwords_do_not_match)
-                return@setOnClickListener
-            }
-
-            if (email.isBlank()) {
-                binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = getString(R.string.ui_email_cannot_be_empty)
+                binding.tvError.text = validation.message
                 return@setOnClickListener
             }
 

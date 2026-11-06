@@ -18,6 +18,9 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
+import com.pokemon.explorer.utils.AuthValidator
+import com.pokemon.explorer.utils.ValidationResult
+
 class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
@@ -39,6 +42,14 @@ class LoginFragment : Fragment() {
         binding.btnLogin.setOnClickListener {
             val email = binding.etEmail.text?.toString().orEmpty()
             val password = binding.etPassword.text?.toString().orEmpty()
+
+            val validation = AuthValidator.validateLogin(email, password)
+            if (validation is ValidationResult.Error) {
+                binding.tvError.visibility = View.VISIBLE
+                binding.tvError.text = validation.message
+                return@setOnClickListener
+            }
+
             appState.login(email, password)
         }
 
